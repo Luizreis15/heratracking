@@ -1,0 +1,34 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# env — NUNCA commitar
+.env
+.env.local
+.env.*.local
+apps/web/.env.local
+apps/worker/.env
+
+# build
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# pastas de setup (não fazem parte do repo)
+Arquiteto de Agencia/
+Arquiteto_Prompt/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/settings.json
+.idea/
+*.swp

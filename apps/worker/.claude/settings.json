@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(arquiteto-de-agencia)",
+      "WebSearch(*)",
+      "Read(*)",
+      "Glob(*)",
+      "Grep(*)"
+    ],
+    "deny": []
+  }
+}
