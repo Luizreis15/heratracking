@@ -19,16 +19,20 @@ const DEFAULT_METHOD_PROFILE = {
 } as const;
 
 export function useBootstrap() {
-  const { session, setWorkspace } = useAuth();
+  const { session, workspace, setWorkspace } = useAuth();
   const [bootstrapping, setBootstrapping] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // evita rodar duas vezes no StrictMode dev (React 18 monta efeitos 2x)
-  const ranRef = useRef(false);
+  // uid da última tentativa — evita re-run quando session renova token
+  const attemptedForRef = useRef<string | null>(null);
+
+  const uid = session?.user?.id ?? null;
 
   useEffect(() => {
-    if (!session) return;
-    if (ranRef.current) return;
-    ranRef.current = true;
+    // Sai se: sem usuário, workspace já existe, ou já tentamos para este uid
+    if (!uid) return;
+    if (workspace) return;
+    if (attemptedForRef.current === uid) return;
+    attemptedForRef.current = uid;
 
     let cancelled = false;
 
@@ -37,16 +41,17 @@ export function useBootstrap() {
       setError(null);
 
       try {
-        // Valida o token no servidor — garante que auth.uid() funciona no banco
+        // Garante JWT válido no cliente antes de qualquer operação
         const { data: userData, error: authErr } = await supabase.auth.getUser();
         if (authErr || !userData.user) throw new Error("Sessão inválida — faça login novamente");
-        const uid = userData.user.id;
+
+        const verifiedUid = userData.user.id;
 
         // 1. Verifica se já é membro de algum workspace
         const { data: memberships, error: memberErr } = await supabase
           .from("workspace_members")
           .select("workspace_id")
-          .eq("user_id", uid)
+          .eq("user_id", verifiedUid)
           .limit(1);
 
         if (memberErr) throw memberErr;
@@ -57,7 +62,6 @@ export function useBootstrap() {
             .select("*")
             .eq("id", memberships[0].workspace_id)
             .single();
-
           if (wsErr) throw wsErr;
           if (!cancelled && ws) setWorkspace(ws);
           return;
@@ -66,7 +70,7 @@ export function useBootstrap() {
         // 2. Primeira vez — cria workspace Hera DG
         const { data: newWs, error: wsErr } = await supabase
           .from("workspaces")
-          .insert({ name: HERA_DG_NAME, owner_id: uid })
+          .insert({ name: HERA_DG_NAME, owner_id: verifiedUid })
           .select()
           .single();
 
@@ -76,11 +80,10 @@ export function useBootstrap() {
         // 3. Adiciona como owner/member
         const { error: memberInsertErr } = await supabase
           .from("workspace_members")
-          .insert({ workspace_id: newWs.id, user_id: uid, role: "owner" });
-
+          .insert({ workspace_id: newWs.id, user_id: verifiedUid, role: "owner" });
         if (memberInsertErr) throw memberInsertErr;
 
-        // 4. Cria method_profile padrão (falha silenciosa — não é crítico)
+        // 4. Method profile padrão (falha silenciosa)
         await supabase.from("method_profiles").insert({
           workspace_id: newWs.id,
           nicho: DEFAULT_METHOD_PROFILE.nicho,
@@ -90,7 +93,9 @@ export function useBootstrap() {
 
         if (!cancelled) setWorkspace(newWs);
       } catch (err) {
+        // Libera a trava para nova tentativa em caso de erro
         if (!cancelled) {
+          attemptedForRef.current = null;
           setError(err instanceof Error ? err.message : "Erro ao inicializar workspace");
         }
       } finally {
@@ -100,7 +105,7 @@ export function useBootstrap() {
 
     void run();
     return () => { cancelled = true; };
-  }, [session, setWorkspace]);
+  }, [uid, workspace, setWorkspace]);
 
   return { bootstrapping, error };
 }
