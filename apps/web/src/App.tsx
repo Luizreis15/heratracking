@@ -3,6 +3,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AuthPage } from "@/pages/AuthPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { NewOperationPage } from "@/pages/NewOperationPage";
+import { OperationPage } from "@/pages/OperationPage";
 
 export default function App() {
   return (
@@ -14,6 +16,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/operations/new"
+          element={
+            <ProtectedRoute>
+              <NewOperationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/operations/:id"
+          element={
+            <ProtectedRoute>
+              <OperationPage />
             </ProtectedRoute>
           }
         />
