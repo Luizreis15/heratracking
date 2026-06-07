@@ -13,6 +13,7 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   workspace: Workspace | null;
+  isSuperAdmin: boolean;
   loading: boolean;
   setWorkspace: (ws: Workspace) => void;
   signOut: () => Promise<void>;
@@ -45,12 +46,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  const isSuperAdmin =
+    (session?.user?.app_metadata?.super_admin as boolean | undefined) === true;
+
   return (
     <AuthContext.Provider
       value={{
         session,
         user: session?.user ?? null,
         workspace,
+        isSuperAdmin,
         loading,
         setWorkspace,
         signOut,

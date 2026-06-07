@@ -3,7 +3,7 @@ import { useBootstrap } from "@/hooks/useBootstrap";
 import { LogOut, Building2, Loader2 } from "lucide-react";
 
 export function DashboardPage() {
-  const { user, workspace, signOut } = useAuth();
+  const { user, workspace, isSuperAdmin, signOut } = useAuth();
   const { bootstrapping, error } = useBootstrap();
 
   return (
@@ -23,6 +23,11 @@ export function DashboardPage() {
           )}
         </div>
         <div className="flex items-center gap-4">
+          {isSuperAdmin && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+              super admin
+            </span>
+          )}
           <span className="text-sm text-muted-foreground">{user?.email}</span>
           <button
             onClick={() => void signOut()}
