@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -19,26 +19,34 @@ const DEFAULT_METHOD_PROFILE = {
 } as const;
 
 export function useBootstrap() {
-  const { user, setWorkspace } = useAuth();
+  const { session, setWorkspace } = useAuth();
   const [bootstrapping, setBootstrapping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // evita rodar duas vezes no StrictMode dev (React 18 monta efeitos 2x)
+  const ranRef = useRef(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!session) return;
+    if (ranRef.current) return;
+    ranRef.current = true;
 
     let cancelled = false;
 
     async function run() {
-      if (!user) return;
       setBootstrapping(true);
       setError(null);
 
       try {
+        // Valida o token no servidor — garante que auth.uid() funciona no banco
+        const { data: userData, error: authErr } = await supabase.auth.getUser();
+        if (authErr || !userData.user) throw new Error("Sessão inválida — faça login novamente");
+        const uid = userData.user.id;
+
         // 1. Verifica se já é membro de algum workspace
         const { data: memberships, error: memberErr } = await supabase
           .from("workspace_members")
           .select("workspace_id")
-          .eq("user_id", user.id)
+          .eq("user_id", uid)
           .limit(1);
 
         if (memberErr) throw memberErr;
@@ -58,17 +66,17 @@ export function useBootstrap() {
         // 2. Primeira vez — cria workspace Hera DG
         const { data: newWs, error: wsErr } = await supabase
           .from("workspaces")
-          .insert({ name: HERA_DG_NAME, owner_id: user.id })
+          .insert({ name: HERA_DG_NAME, owner_id: uid })
           .select()
           .single();
 
-        if (wsErr) throw wsErr;
-        if (!newWs) throw new Error("Workspace não criado");
+        if (wsErr) throw new Error(`Erro ao criar workspace: ${wsErr.message} (${wsErr.code})`);
+        if (!newWs) throw new Error("Workspace não retornado após insert");
 
         // 3. Adiciona como owner/member
         const { error: memberInsertErr } = await supabase
           .from("workspace_members")
-          .insert({ workspace_id: newWs.id, user_id: user.id, role: "owner" });
+          .insert({ workspace_id: newWs.id, user_id: uid, role: "owner" });
 
         if (memberInsertErr) throw memberInsertErr;
 
@@ -83,9 +91,7 @@ export function useBootstrap() {
         if (!cancelled) setWorkspace(newWs);
       } catch (err) {
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : "Erro ao inicializar workspace",
-          );
+          setError(err instanceof Error ? err.message : "Erro ao inicializar workspace");
         }
       } finally {
         if (!cancelled) setBootstrapping(false);
@@ -93,10 +99,8 @@ export function useBootstrap() {
     }
 
     void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [user, setWorkspace]);
+    return () => { cancelled = true; };
+  }, [session, setWorkspace]);
 
   return { bootstrapping, error };
 }
