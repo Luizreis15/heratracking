@@ -1,21 +1,24 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthPage } from "@/pages/AuthPage";
+import { DashboardPage } from "@/pages/DashboardPage";
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Placeholder title="HERA Arquiteto" subtitle="F0 scaffold — pronto" />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
-
-function Placeholder({ title, subtitle }: { title: string; subtitle: string }) {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-primary">{title}</h1>
-        <p className="text-muted-foreground">{subtitle}</p>
-      </div>
-    </div>
+    <AuthProvider>
+      <Routes>
+        <Route path="/auth" element={<AuthPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }
