@@ -352,6 +352,7 @@ export type Database = {
           nicho: string
           operador_perfil: Json | null
           posicionamento: string
+          refine_params: Json | null
           restricoes: string
           status: string
           ticket_alvo: string
@@ -372,6 +373,7 @@ export type Database = {
           nicho: string
           operador_perfil?: Json | null
           posicionamento: string
+          refine_params?: Json | null
           restricoes?: string
           status?: string
           ticket_alvo: string
@@ -392,6 +394,7 @@ export type Database = {
           nicho?: string
           operador_perfil?: Json | null
           posicionamento?: string
+          refine_params?: Json | null
           restricoes?: string
           status?: string
           ticket_alvo?: string

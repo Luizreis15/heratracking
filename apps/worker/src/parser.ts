@@ -119,6 +119,26 @@ export function parseComparativoBlock(text: string): Record<string, unknown> | n
   }
 }
 
+export function parseRefineBlock(
+  text: string,
+  sectionKey: string,
+): Record<string, unknown> | null {
+  const re = new RegExp(
+    `<<<HERA_REFINE:${sectionKey}>>>\\s*([\\s\\S]*?)\\s*<<<END>>>`,
+    "g",
+  );
+  const match = re.exec(text);
+  if (!match?.[1]) return null;
+  try {
+    const parsed = JSON.parse(match[1].trim()) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    console.warn(`[worker] JSON inválido no bloco HERA_REFINE:${sectionKey}`);
+    return null;
+  }
+}
+
 export function toolLogLine(toolName: string, toolInput: unknown): string {
   if (toolName === "WebSearch") {
     const query =

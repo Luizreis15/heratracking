@@ -3,7 +3,7 @@ import { parseSeeds } from "./concorrente-seeds.js";
 
 export type OperationStatus = "queued" | "running" | "done" | "error";
 export type PhaseStatus = "pending" | "running" | "done" | "error";
-export type JobMode = "full" | "concorrencia" | "intel" | "comparativo";
+export type JobMode = "full" | "concorrencia" | "intel" | "comparativo" | "refine_section";
 
 export type { ConcorrenteSeed };
 
@@ -17,6 +17,7 @@ export type Operation = {
   modelo_entrega: string;
   restricoes: string;
   operador_perfil: Record<string, unknown> | null;
+  refine_params: { section_key: string; instruction: string } | null;
   concorrentes_seeds: ConcorrenteSeed[];
   job_mode: JobMode;
   status: OperationStatus;
@@ -37,6 +38,14 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
       !Array.isArray(row.operador_perfil)
         ? (row.operador_perfil as Record<string, unknown>)
         : null,
+    refine_params:
+      row.refine_params &&
+      typeof row.refine_params === "object" &&
+      !Array.isArray(row.refine_params) &&
+      typeof (row.refine_params as Record<string, unknown>).section_key === "string" &&
+      typeof (row.refine_params as Record<string, unknown>).instruction === "string"
+        ? (row.refine_params as { section_key: string; instruction: string })
+        : null,
     job_mode:
       row.job_mode === "concorrencia"
         ? "concorrencia"
@@ -44,7 +53,9 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
           ? "intel"
           : row.job_mode === "comparativo"
             ? "comparativo"
-            : "full",
+            : row.job_mode === "refine_section"
+              ? "refine_section"
+              : "full",
   };
 }
 

@@ -1,5 +1,8 @@
+import { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { SectionShell } from "@/components/blueprint/SectionShell";
 import { MercadoIcpSection } from "@/components/blueprint/MercadoIcpSection";
 import { OfertaEscadaSection } from "@/components/blueprint/OfertaEscadaSection";
@@ -57,6 +60,40 @@ const SECTION_DEFS: SectionDef[] = [
 
 export function BlueprintView() {
   const { operation, sections, operationId } = useOutletContext<OperationContext>();
+  const queryClient = useQueryClient();
+
+  // Tracks which section key is currently being refined (set locally, cleared when op returns to done)
+  const [refiningSection, setRefiningSection] = useState<string | null>(null);
+
+  // Clear refining state when the operation finishes and invalidate blueprint data
+  useEffect(() => {
+    if (operation.status === "done" && refiningSection !== null) {
+      setRefiningSection(null);
+      void queryClient.invalidateQueries({ queryKey: ["blueprint", operationId] });
+    }
+  }, [operation.status, refiningSection, operationId, queryClient]);
+
+  const makeRefineHandler = useCallback(
+    (sectionKey: string) => async (instruction: string) => {
+      setRefiningSection(sectionKey);
+      const { error } = await supabase.from("operations").update({
+        job_mode: "refine_section",
+        status: "queued",
+        refine_params: { section_key: sectionKey, instruction },
+        error: null,
+        finished_at: null,
+      }).eq("id", operationId);
+
+      if (error) {
+        setRefiningSection(null);
+        throw new Error(error.message);
+      }
+
+      // Trigger polling — OperationLayout polls when status is queued/running
+      void queryClient.invalidateQueries({ queryKey: ["operation", operationId] });
+    },
+    [operationId, queryClient],
+  );
 
   const filledSections = SECTION_DEFS.filter((s) => sections[s.key] != null);
 
@@ -73,6 +110,9 @@ export function BlueprintView() {
     );
   }
 
+  const isAnyRefining =
+    operation.status === "queued" || operation.status === "running";
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
@@ -83,9 +123,13 @@ export function BlueprintView() {
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           {filledSections.length} de {SECTION_DEFS.length} seções •{" "}
-          <span className="text-primary">
-            Clique em Ajustar em qualquer seção para refinar com IA
-          </span>
+          {isAnyRefining ? (
+            <span className="text-hera-running">Refinamento em processamento...</span>
+          ) : (
+            <span className="text-primary">
+              Clique em Ajustar em qualquer seção para refinar com IA
+            </span>
+          )}
         </p>
       </div>
 
@@ -96,6 +140,7 @@ export function BlueprintView() {
           if (data == null) return null;
 
           const isFirst = i === 0;
+          const isSectionRefining = refiningSection === def.key && isAnyRefining;
 
           return (
             <SectionShell
@@ -103,6 +148,8 @@ export function BlueprintView() {
               num={i + 1}
               label={def.label}
               defaultOpen={isFirst}
+              onRefine={makeRefineHandler(def.key)}
+              isRefining={isSectionRefining}
             >
               {def.render(data, operationId)}
             </SectionShell>
