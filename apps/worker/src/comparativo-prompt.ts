@@ -11,8 +11,12 @@ export type ComparativoInput = {
 
 export function buildComparativoPrompt(input: ComparativoInput): string {
   const { operation, profile, operador, competitors, intelEvents } = input;
+  const operadorLabel =
+    (typeof operador.nome === "string" && operador.nome.trim()) ||
+    operation.posicionamento.split(/[—–-]/)[0]?.trim() ||
+    "Operador";
 
-  return `Você é o estrategista competitivo da agência Hera DG.
+  return `Você é o estrategista competitivo da agência **${operadorLabel}**.
 
 ## Contexto B2B
 ${buildOperadorB2BContext(operation, profile)}
@@ -23,7 +27,7 @@ ${buildOperadorB2BContext(operation, profile)}
 - Ticket-alvo: ${operation.ticket_alvo}
 - Restrições: ${operation.restricoes}
 
-## Perfil do operador (Hera DG / nós)
+## Perfil do operador (nós)
 ${JSON.stringify(operador, null, 2)}
 
 ## Concorrentes mapeados (${competitors.length})
@@ -36,10 +40,10 @@ ${intelEvents.length > 0 ? JSON.stringify(intelEvents.slice(0, 30), null, 2) : "
 Produza uma **análise comparativa estratégica** cruzando operador × todos os concorrentes.
 
 Regras:
-- Compare AGÊNCIAS (operador B2B), nunca clínicas de implante como concorrente do operador.
+- Compare **agências/consultorias** (operador B2B), nunca o ICP nem players do mercado do produto do ICP.
 - Use dados fornecidos; complemente com WebSearch apenas para lacunas críticas (máx. 3 buscas).
 - Marque inferências como hipótese. Não invente fatos.
-- Respeite compliance odonto nas recomendações de copy (sem promessa de cura/resultado garantido).
+- Respeite as restrições de compliance do briefing em recomendações de copy.
 - Português BR, tom direto para sócios da agência.
 
 Emita APENAS um bloco:
@@ -55,7 +59,7 @@ Emita APENAS um bloco:
       "nivel_ameaca": "alta|media|baixa",
       "onde_ganham": "texto",
       "onde_perdem": "texto",
-      "angulo_contra": "como a Hera DG deve se posicionar contra esta agência"
+      "angulo_contra": "como o operador deve se posicionar contra esta agência"
     }
   ],
   "recomendacoes": [

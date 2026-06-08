@@ -59,7 +59,7 @@ export function useMethodProfile(workspaceId: string | undefined) {
         .insert({
           workspace_id: workspaceId,
           nicho: "Clínicas implantodontistas (clientes B2B)",
-          posicionamento: perfil.posicionamento ?? "Hera DG",
+          posicionamento: perfil.posicionamento ?? "Minha Agência",
           extensoes,
         })
         .select("id")
@@ -67,7 +67,7 @@ export function useMethodProfile(workspaceId: string | undefined) {
       if (error) throw error;
       if (!inserted) {
         throw new Error(
-          "Não foi possível criar o perfil Hera DG — verifique permissões do workspace.",
+          "Não foi possível criar o perfil de método — verifique permissões do workspace.",
         );
       }
     },

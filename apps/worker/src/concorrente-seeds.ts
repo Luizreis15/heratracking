@@ -88,7 +88,7 @@ export function formatSeedsForPrompt(seeds: ConcorrenteSeed[]): string {
         const handle = handleFromInstagram(s.instagram);
         lines.push(`   Instagram: ${normalizeUrl(s.instagram)} (@${handle})`);
         lines.push(
-          `   → Busque: "@${handle} marketing odonto", "${s.nome} agência", site/link na bio, depoimentos`,
+          `   → Busque: "@${handle}", "${s.nome} agência marketing", site/link na bio, ofertas e depoimentos`,
         );
       }
       if (s.notas) lines.push(`   Notas: ${s.notas}`);

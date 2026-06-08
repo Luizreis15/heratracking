@@ -119,7 +119,7 @@ export function AppShell() {
               <NavItem to={`/operations/${operationId}/concorrencia`} icon={Users}>
                 Concorrência
               </NavItem>
-              <NavItem to={`/operations/${operationId}/hera-dg`} icon={Building2}>
+              <NavItem to={`/operations/${operationId}/analise`} icon={Building2}>
                 Análise
               </NavItem>
               <NavItem to={`/operations/${operationId}/operacao`} icon={BarChart3}>

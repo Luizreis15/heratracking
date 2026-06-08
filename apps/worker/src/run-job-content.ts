@@ -16,7 +16,7 @@ const CONTENT_MODEL = "claude-opus-4-8";
 const FORMAT_SCHEMAS: Record<string, string> = {
   post_instagram: `{ "titulo": "hook em 1 linha", "corpo": "caption com 3-5 parágrafos curtos, emojis permitidos", "cta": "chamada para ação", "hashtags": ["#hashtag1", ...] }`,
   script_reels: `{ "hook": "fala dos primeiros 3 segundos — direto ao ponto", "desenvolvimento": "narração de 30-45 segundos", "cta": "chamada final", "duracao_seg": 45 }`,
-  email_prospeccao: `{ "assunto": "assunto (máx 60 chars, sem clickbait)", "corpo": "200-300 palavras, personalizado para implante/reabilitação", "cta": "próximo passo claro" }`,
+  email_prospeccao: `{ "assunto": "assunto (máx 60 chars, sem clickbait)", "corpo": "200-300 palavras, personalizado para o ICP B2B do briefing", "cta": "próximo passo claro" }`,
 };
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -42,11 +42,11 @@ function buildPrompt(op: Operation): { system: string; user: string } {
           .join("\n")
       : "Nenhum ângulo fornecido — use criatividade baseada nas dores.";
 
-  const system = `Você é o Gerador de Conteúdo HERA — especializado em criar copies B2B para agências de marketing ultra-nichadas em implantodontia.
+  const system = `Você é o Gerador de Conteúdo HERA — cria copies B2B para agências de marketing ultra-nichadas.
 
-Contexto: o ICP da agência são **clínicas e dentistas especializados em implante e reabilitação oral** que contratam a agência para gestão de marketing digital. O conteúdo gerado é da agência para atrair esses clientes B2B — NÃO para pacientes finais.
+O conteúdo é da **agência (operador)** para atrair seu **cliente B2B (ICP)** definido no briefing — não para o consumidor final do produto/serviço do ICP.
 
-Compliance: nunca prometa resultado clínico garantido. Foco em resultados de marketing (leads, visibilidade, captação de pacientes qualificados).`;
+Respeite integralmente as restrições de compliance do briefing. Foco em resultados de marketing (leads, pipeline, visibilidade, autoridade).`;
 
   const user = `## Operação
 - Nicho: ${op.nicho}
@@ -55,7 +55,7 @@ Compliance: nunca prometa resultado clínico garantido. Foco em resultados de ma
 - Modelo: ${op.modelo_entrega}
 - Restrições: ${op.restricoes}
 
-## Dores prioritárias do ICP (clínicas de implante)
+## Dores prioritárias do ICP
 ${params.dores.map((d, i) => `${i + 1}. ${d}`).join("\n")}
 
 ## Ângulos criativos disponíveis

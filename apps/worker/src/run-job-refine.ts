@@ -36,7 +36,7 @@ function buildPrompt(
 Regras:
 1. Mantenha EXATAMENTE as mesmas chaves JSON da seção original. Não adicione nem remova chaves sem instrução explícita.
 2. Ajuste apenas os valores que a instrução pede.
-3. Compliance odonto: copy para pacientes finais nunca promete cura ou resultado garantido.
+3. Respeite as restrições de compliance do briefing em toda copy gerada.
 4. Emita SOMENTE o bloco delimitado — sem texto adicional antes ou depois.`;
 
   const user = `## Contexto da operação

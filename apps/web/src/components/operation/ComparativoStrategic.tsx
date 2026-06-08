@@ -84,7 +84,7 @@ export function ComparativoStrategic({ operationId, competitorCount, busy }: Pro
             Comparativo inteligente
           </h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-            Claude sintetiza perfil Hera DG + concorrentes + intel recente. Perplexity e Meta
+            Claude sintetiza perfil do operador + concorrentes + intel recente. Perplexity e Meta
             alimentam os dados; Claude interpreta.
           </p>
         </div>

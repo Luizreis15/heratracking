@@ -13,7 +13,7 @@ ${buildOperadorB2BContext(operation, profile)}
 ## Briefing (Fase 0)
 - **Cliente B2B que a agência quer atender:** ${operation.nicho}
 - **Posicionamento da agência (operador):** ${operation.posicionamento}
-- **Ticket-alvo (clínica → agência):** ${operation.ticket_alvo}
+- **Ticket-alvo (cliente B2B → agência):** ${operation.ticket_alvo}
 - **Modelo de entrega:** ${operation.modelo_entrega}
 - **Restrições e compliance:** ${operation.restricoes}
 
@@ -23,10 +23,10 @@ ${extensoes}
 ## Instruções obrigatórias do worker
 1. Leia \`references/00-operador-b2b.md\` e \`references/00-output-contract.md\` ANTES de qualquer saída.
 2. Invoque a skill \`arquiteto-de-agencia\` e siga o protocolo completo sem pular fases.
-3. Fase 1 — duas pesquisas: (A) ICP = dores de clínicas/dentistas que contratam agência; (B) competitors = outras agências do nicho.
-4. \`<<<HERA_COMPETITORS>>>\` = mínimo 3 **agências** (ex.: agenciacomia.com.br). Nunca clínicas de implante.
+3. Fase 1 — duas pesquisas: (A) ICP = dores de quem contrata a agência; (B) competitors = outras agências do mesmo nicho B2B.
+4. \`<<<HERA_COMPETITORS>>>\` = mínimo 3 **agências/consultorias**. Nunca o ICP nem players do mercado do produto do ICP.
 5. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido conforme o contrato.
-6. Respeite compliance do briefing em toda copy gerada para **pacientes finais** do cliente B2B.
+6. Respeite compliance do briefing em toda copy gerada.
 7. Marque hipóteses explicitamente — não trate estimativas como fatos.
 
 Comece agora pela Fase 1 (Pesquisa + ICP).`;
@@ -67,7 +67,7 @@ ${extensoes}
 1. Leia \`references/00-output-contract.md\` antes de emitir blocos.
 2. Invoque a skill \`arquiteto-de-agencia\` e execute **somente Fases 2 a 6**: oferta, comercial, posicionamento, trafego, blueprint.
 3. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido.
-4. Respeite compliance do briefing em copy para pacientes finais.
+4. Respeite compliance do briefing em toda copy.
 
 Comece agora pela Fase 2 (Oferta).`;
 }

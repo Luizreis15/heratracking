@@ -105,11 +105,11 @@ Emita um bloco delimitado exatamente neste formato (sem espaços extras nas tags
 
 ## Bloco de concorrentes (fase pesquisa)
 
-**Concorrência = outras AGÊNCIAS que vendem marketing para o mesmo nicho B2B.**
-NÃO liste clínicas odontológicas, redes de implante nem fabricantes.
+**Concorrência = outras AGÊNCIAS/consultorias que vendem marketing para o mesmo ICP B2B.**
+NÃO liste o ICP nem players do mercado do produto/serviço que o ICP vende.
 Leia `references/00-operador-b2b.md` antes de preencher este bloco.
 
-`ticket_estimado` = mensalidade/retainer que a **agência concorrente cobra do dentista/clínica** (não preço de implante para paciente).
+`ticket_estimado` = mensalidade/retainer que a **agência concorrente cobra do cliente B2B** (não o preço do produto que o ICP vende ao consumidor final).
 
 Imediatamente após o bloco `<<<HERA_PHASE:pesquisa>>>`, emita também:
 
@@ -132,11 +132,10 @@ Imediatamente após o bloco `<<<HERA_PHASE:pesquisa>>>`, emita também:
 <<<END>>>
 ```
 
-Inclua **no mínimo 3 agências/concorrentes do operador** (ex.: agenciacomia.com.br e similares).
+Inclua **no mínimo 3 agências/concorrentes do operador** relevantes ao ICP do briefing.
 
-## Regras de compliance (Hera DG — odontologia)
+## Regras de compliance
 
-- Nunca escrever "garantia de resultado", "cura garantida", "procedimento sem risco".
-- Não citar percentuais de sucesso como fato (apenas hipótese a validar).
-- Respeitar restrições do CFO para publicidade odontológica.
-- Estas restrições vêm do campo `restricoes` do briefing e devem ser aplicadas em TODA a copy gerada.
+- Aplique integralmente o campo `restricoes` do briefing em TODA a copy gerada.
+- Não assuma regras de nicho específico (saúde, jurídico, financeiro) se não estiverem no briefing.
+- Marque estimativas e claims não verificados como hipótese a validar.

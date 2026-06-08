@@ -4,23 +4,19 @@ import { supabase } from "@/lib/supabase";
 import { DEFAULT_OPERADOR_PROFILE } from "@/lib/operador-profile";
 import type { Workspace } from "@/types/index";
 
-const HERA_DG_NAME = "Hera DG";
+const DEFAULT_WORKSPACE_NAME = "Minha Agência";
 
 const DEFAULT_METHOD_PROFILE = {
-  nicho: "Clínicas e consultórios implantodontistas (clientes B2B da agência)",
-  posicionamento:
-    "Digital Hera Marketing / Hera DG — agência especializada em estruturar marketing digital para clínicas captarem mais pacientes de implante e reabilitação oral, com compliance CFO/CFM",
+  nicho: "Defina o ICP no briefing de cada operação",
+  posicionamento: "Agência de marketing B2B ultra-nichada",
   extensoes: {
     modelo_negocio:
-      "B2B: a agência vende marketing para dentistas/clínicas. ICP = implantodontista dono de clínica. Concorrência = outras agências de marketing odonto (ex.: agenciacomia.com.br).",
+      "B2B: a agência vende marketing para um nicho específico. ICP = quem contrata a agência. Concorrência = outras agências do mesmo nicho.",
     nivel_consciencia:
-      "Cliente B2B nível 3–4: dentista/clínica já sabe que precisa de marketing estruturado, está comparando agências e modelos de contrato.",
-    diferenciais_operador:
-      "Foco em captação previsível de pacientes de implante/reabilitação, operação enxuta, compliance CFO e linguagem que converte sem prometer resultado.",
-    ticket_referencia:
-      "Retainer R$ 2.500–4.000/mês que a clínica paga à Hera DG — não confundir com ticket do procedimento odontológico.",
-    restricoes_copy:
-      "Na copy para pacientes finais: nunca prometer resultado garantido, cura ou percentual de sucesso. Seguir CFO e CFM.",
+      "Cliente B2B nível 3–4: já sabe que precisa de marketing estruturado, está comparando agências.",
+    diferenciais_operador: "Preencha no perfil do operador em cada operação.",
+    ticket_referencia: "Retainer mensal que o cliente B2B paga à agência.",
+    restricoes_copy: "Defina no campo restrições de cada operação.",
     perfil: DEFAULT_OPERADOR_PROFILE,
   },
 } as const;
@@ -54,7 +50,6 @@ export function useWorkspaceBootstrap(
 
         const verifiedUid = userData.user.id;
 
-        // Repair: owner do workspace sem row em workspace_members (RLS quebrava method_profiles)
         const { data: ownedWs } = await supabase
           .from("workspaces")
           .select("id")
@@ -96,7 +91,6 @@ export function useWorkspaceBootstrap(
           return;
         }
 
-        // Recupera workspace órfão (criado numa tentativa anterior sem membership)
         const { data: owned, error: ownedErr } = await supabase
           .from("workspaces")
           .select("*")
@@ -119,7 +113,7 @@ export function useWorkspaceBootstrap(
 
         const { data: newWs, error: wsErr } = await supabase
           .from("workspaces")
-          .insert({ name: HERA_DG_NAME, owner_id: verifiedUid })
+          .insert({ name: DEFAULT_WORKSPACE_NAME, owner_id: verifiedUid })
           .select()
           .single();
 
@@ -139,7 +133,7 @@ export function useWorkspaceBootstrap(
           posicionamento: DEFAULT_METHOD_PROFILE.posicionamento,
           extensoes: DEFAULT_METHOD_PROFILE.extensoes,
         });
-        if (profileErr) throw new Error(`Erro ao criar perfil Hera DG: ${profileErr.message}`);
+        if (profileErr) throw new Error(`Erro ao criar perfil de método: ${profileErr.message}`);
 
         if (!cancelled) setWorkspace(newWs);
       } catch (err) {

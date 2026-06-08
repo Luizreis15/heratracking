@@ -34,7 +34,8 @@ export default function App() {
             <Route index element={<BoardView />} />
             <Route path="blueprint" element={<ErrorBoundary><BlueprintView /></ErrorBoundary>} />
             <Route path="concorrencia" element={<ErrorBoundary><ConcorrenciaView /></ErrorBoundary>} />
-            <Route path="hera-dg" element={<ErrorBoundary><HeraDgView /></ErrorBoundary>} />
+            <Route path="analise" element={<ErrorBoundary><HeraDgView /></ErrorBoundary>} />
+            <Route path="hera-dg" element={<Navigate to="analise" replace />} />
             <Route path="operacao" element={<ErrorBoundary><OperacaoView /></ErrorBoundary>} />
             <Route path="inteligencia" element={<ErrorBoundary><InteligenciaView /></ErrorBoundary>} />
             <Route path="conteudo" element={<ErrorBoundary><ContentHubView /></ErrorBoundary>} />

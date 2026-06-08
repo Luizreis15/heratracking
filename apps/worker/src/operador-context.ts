@@ -33,35 +33,55 @@ function formatOperadorPerfil(p: OperadorPerfil): string {
   return lines.length > 0 ? lines.join("\n") : "";
 }
 
+/** Instruções da Fase 1 derivadas do briefing — sem hardcode de nicho */
+export function buildPesquisaPhaseInstructions(operation: Operation): string {
+  return `Duas pesquisas OBRIGATÓRIAS e distintas:
+
+A) ICP (cliente B2B): dores, desejos e linguagem de **${operation.nicho}** que CONTRATAM agência de marketing.
+   Buscas adaptadas ao nicho: dificuldade de captação, contratar agência/gestão de tráfego, ROI de marketing B2B.
+
+B) Concorrência do OPERADOR: outras **AGÊNCIAS ou consultorias** que vendem marketing para o mesmo nicho B2B.
+   HERA_COMPETITORS = somente agências/consultorias. PROIBIDO listar clientes finais do ICP ou players do mercado do produto do ICP.
+   ticket_estimado = retainer que a agência concorrente cobra do cliente B2B (referência: ${operation.ticket_alvo}) — NÃO o preço do produto/serviço que o ICP vende ao consumidor final.
+
+Use no mínimo 6 buscas distintas (3 para ICP + 3 para agências).
+Ao final, emita APENAS:
+1) <<<HERA_PHASE:pesquisa>>> com JSON mercado_icp válido
+2) <<<HERA_COMPETITORS>>> com no mínimo 3 agências concorrentes reais do operador
+3) <<<END>>> após cada bloco`;
+}
+
 /**
  * Contexto B2B injetado em todo prompt do worker.
- * Evita confundir ICP (clínica) com concorrência (outras agências).
+ * ICP e concorrência vêm exclusivamente do briefing (Fase 0).
  */
 export function buildOperadorB2BContext(
   operation: Operation,
   methodProfile?: MethodProfile | null,
 ): string {
   const perfil = parseOperadorPerfil(methodProfile ?? null);
+  const operadorNome =
+    perfil?.nome?.trim() || operation.posicionamento.split(/[—–-]/)[0]?.trim() || "Operador";
   const perfilBlock = perfil
-    ? `\n## Perfil interno do operador (Hera DG — para comparar com concorrentes)\n${formatOperadorPerfil(perfil)}\n`
+    ? `\n## Perfil interno do operador (para comparar com concorrentes)\n${formatOperadorPerfil(perfil)}\n`
     : "";
 
   return `## MODELO B2B — LEIA ANTES DE TUDO
 
-Você estrutura a operação de uma **AGÊNCIA DE MARKETING** (operador), não de uma clínica.
+Você estrutura a operação de uma **AGÊNCIA DE MARKETING** (operador), não do negócio do cliente final.
 
 | Papel | Quem é nesta operação |
 |-------|----------------------|
-| Operador (agência) | Quem vende marketing — ver posicionamento no briefing |
-| Cliente final / ICP | ${operation.nicho} |
-| Concorrência (HERA_COMPETITORS) | Outras **agências** que vendem marketing para esse mesmo nicho B2B |
+| Operador (agência) | ${operadorNome} — ver posicionamento no briefing |
+| Cliente B2B / ICP | ${operation.nicho} |
+| Concorrência (HERA_COMPETITORS) | Outras **agências/consultorias** que vendem marketing para esse mesmo ICP |
 | Ticket-alvo | ${operation.ticket_alvo} — valor que o **cliente B2B paga à agência** (retainer/contrato) |
 
-**ICP:** pesquise dores de **clínicas/dentistas implantodontistas** que contratam agência (agenda, leads, ROI, agência que falhou).
+**ICP:** pesquise dores de **${operation.nicho}** que contratam agência (captação, previsibilidade, ROI, frustração com fornecedores anteriores).
 
-**HERA_COMPETITORS:** pesquise **agências** (ex.: agenciacomia.com.br, gestores de tráfego odonto). PROIBIDO listar clínicas de implante ou fabricantes.
+**HERA_COMPETITORS:** pesquise **agências/consultorias** que atendem o mesmo ICP. Nunca liste o ICP nem empresas do mercado do produto do ICP como concorrente do operador.
 
-**Ticket em competitors:** retainer que a agência concorrente cobra do dentista — NUNCA preço de implante para paciente final.
+**Compliance:** respeite integralmente as restrições do briefing em toda copy gerada.
 
 ## Concorrentes indicados manualmente pelo operador
 ${formatSeedsForPrompt(parseSeeds(operation.concorrentes_seeds))}
