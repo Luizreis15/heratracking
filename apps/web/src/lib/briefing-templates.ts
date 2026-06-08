@@ -13,6 +13,7 @@ export type BriefingTemplate = {
   concorrentes_manuais: string;
   operador_perfil?: {
     nome: string;
+    tipo?: OperadorTipo;
     url?: string;
     instagram?: string;
     oferta?: string;
@@ -59,6 +60,7 @@ Alloy | https://www.alloy.al
 Votorantim Cimentos (referência mercado) | pesquisar plataformas similares`,
     operador_perfil: {
       nome: "Veramo",
+      tipo: "saas_b2b",
       oferta:
         "Plataforma de homologação online para sindicatos e empresas — digitalização do ciclo trabalhista e compliance de fornecedores",
       ticket: "R$ 2.000 – R$ 15.000/mês",

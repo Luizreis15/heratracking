@@ -1,4 +1,5 @@
 import { formatSeedsForPrompt, parseSeeds } from "./concorrente-seeds.js";
+import type { PhaseName } from "./constants.js";
 import { isSaasB2B } from "./operador-tipo.js";
 import type { MethodProfile, Operation } from "./types.js";
 
@@ -133,4 +134,90 @@ ${formatSeedsForPrompt(parseSeeds(operation.concorrentes_seeds))}
 
 Pesquise e enriqueça CADA seed acima. Inclua-os em HERA_COMPETITORS com dados completos. Busque agências adicionais além das seeds.
 ${perfilBlock}`;
+}
+
+/** Instruções por fase — ramifica SaaS B2B vs agência */
+export function buildPhaseInstructions(
+  phase: PhaseName,
+  operation: Operation,
+): string {
+  if (isSaasB2B(operation)) {
+    const saas: Record<PhaseName, string> = {
+      pesquisa: buildPesquisaPhaseInstructions(operation),
+      oferta: `Desenhe escada de valor e oferta do SaaS para o ICP:
+- Planos/tiers (starter, pro, enterprise), módulos, limites de uso
+- Trial/freemium vs demo assistida, onboarding e time-to-value
+- Upsell/cross-sell e expansão de conta (ACV)
+Ao final, emita APENAS <<<HERA_PHASE:oferta>>> com JSON válido <<<END>>>`,
+      comercial: `Desenhe o processo comercial B2B do SaaS:
+- Motion: inbound (demo request), outbound, parcerias, PLG se aplicável
+- Papéis: SDR/BDR, AE, CSM, pré-vendas técnica
+- Roteiro de discovery/demo, critérios de qualificação (BANT/MEDDIC adaptado)
+- Carta de vendas e proposta enterprise
+Ao final, emita APENAS <<<HERA_PHASE:comercial>>> com JSON válido <<<END>>>`,
+      posicionamento: `Defina posicionamento de produto e narrativa GTM:
+- Category design / statement de posicionamento
+- Pilares de conteúdo para decisores (RH, compliance, TI, diretoria)
+- Prova social B2B (cases, logos, métricas de ROI)
+- Tom enterprise — sem promessas regulatórias não comprovadas
+Ao final, emita APENAS <<<HERA_PHASE:posicionamento>>> com JSON válido <<<END>>>`,
+      trafego: `Desenhe aquisição e funil B2B do SaaS:
+- Demand gen: LinkedIn, conteúdo técnico, webinars, eventos do setor
+- Outbound segmentado por ICP; retargeting para visitantes do site
+- Landing de demo/trial, nurturing e handoff para vendas
+- KPIs: MQL, SQL, demo booked, trial→pago, CAC, payback
+Ao final, emita APENAS <<<HERA_PHASE:trafego>>> com JSON válido <<<END>>>`,
+      blueprint: `Consolide checklist de implementação GTM do SaaS e hipóteses a validar:
+- Roadmap 90 dias: produto, vendas, marketing, CS
+- Experimentos de pricing, canais e messaging
+Ao final, emita APENAS <<<HERA_PHASE:blueprint>>> com JSON { checklist, hipoteses } <<<END>>>`,
+    };
+    return saas[phase];
+  }
+
+  const agencia: Record<PhaseName, string> = {
+    pesquisa: buildPesquisaPhaseInstructions(operation),
+    oferta: `Com base no ICP da fase anterior, desenhe escada de valor e oferta principal da agência.
+Ao final, emita APENAS <<<HERA_PHASE:oferta>>> com JSON válido <<<END>>>`,
+    comercial: `Desenhe funil comercial, SDR, closer, roteiro de call e carta de vendas.
+Ao final, emita APENAS <<<HERA_PHASE:comercial>>> com JSON válido <<<END>>>`,
+    posicionamento: `Defina statement, narrativa, pilares de conteúdo e linha editorial da agência.
+Ao final, emita APENAS <<<HERA_PHASE:posicionamento>>> com JSON válido <<<END>>>`,
+    trafego: `Desenhe mapa de funil, jornada, campanhas, ângulos criativos e mensuração.
+Ao final, emita APENAS <<<HERA_PHASE:trafego>>> com JSON válido <<<END>>>`,
+    blueprint: `Consolide checklist de implementação e hipóteses a validar.
+Ao final, emita APENAS <<<HERA_PHASE:blueprint>>> com JSON { checklist, hipoteses } <<<END>>>`,
+  };
+  return agencia[phase];
+}
+
+export function buildBriefingBlock(
+  operation: Operation,
+  profile: MethodProfile | null,
+): string {
+  const extensoes = profile?.extensoes
+    ? JSON.stringify(profile.extensoes, null, 2)
+    : "{}";
+
+  if (isSaasB2B(operation)) {
+    return `## Briefing (Fase 0)
+- ICP (empresas compradoras): ${operation.nicho}
+- Posicionamento do produto: ${operation.posicionamento}
+- Ticket assinatura (ICP→SaaS): ${operation.ticket_alvo}
+- Modelo de monetização: ${operation.modelo_entrega}
+- Restrições/compliance: ${operation.restricoes}
+
+## Extensões do operador
+${extensoes}`;
+  }
+
+  return `## Briefing (Fase 0)
+- Cliente B2B (ICP): ${operation.nicho}
+- Posicionamento da agência: ${operation.posicionamento}
+- Ticket cliente B2B→agência: ${operation.ticket_alvo}
+- Modelo de entrega: ${operation.modelo_entrega}
+- Restrições/compliance: ${operation.restricoes}
+
+## Extensões do operador
+${extensoes}`;
 }

@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { WORKER_ROOT, type PhaseName } from "../constants.js";
-import { buildOperadorB2BContext, buildPesquisaPhaseInstructions } from "../operador-context.js";
+import {
+  buildBriefingBlock,
+  buildOperadorB2BContext,
+  buildPhaseInstructions,
+} from "../operador-context.js";
 import { isSaasB2B } from "../operador-tipo.js";
 import type { MethodProfile, Operation } from "../types.js";
 
@@ -12,42 +16,31 @@ const SKILL_REF = path.join(
 
 const PHASE_META: Record<
   PhaseName,
-  { title: string; reference: string | null; instructions: string }
+  { title: string; reference: string | null }
 > = {
   pesquisa: {
     title: "Fase 1 — Pesquisa de mercado + ICP",
     reference: "01-pesquisa-icp.md",
-    instructions: "", // preenchido dinamicamente em buildPhaseMessages
   },
   oferta: {
     title: "Fase 2 — Escada de valor + oferta principal",
     reference: "02-escada-valor.md",
-    instructions: `Com base no ICP da fase anterior, desenhe escada de valor e oferta principal.
-Ao final, emita APENAS <<<HERA_PHASE:oferta>>> com JSON válido <<<END>>>`,
   },
   comercial: {
     title: "Fase 3 — Processo comercial",
     reference: "03-comercial.md",
-    instructions: `Desenhe funil comercial, SDR, closer, roteiro de call e carta de vendas.
-Ao final, emita APENAS <<<HERA_PHASE:comercial>>> com JSON válido <<<END>>>`,
   },
   posicionamento: {
     title: "Fase 4 — Posicionamento digital",
     reference: "04-posicionamento.md",
-    instructions: `Defina statement, narrativa, pilares de conteúdo e linha editorial.
-Ao final, emita APENAS <<<HERA_PHASE:posicionamento>>> com JSON válido <<<END>>>`,
   },
   trafego: {
     title: "Fase 5 — Tráfego, funil e aquisição",
     reference: "05-trafego-funil.md",
-    instructions: `Desenhe mapa de funil, jornada, campanhas, ângulos criativos e mensuração.
-Ao final, emita APENAS <<<HERA_PHASE:trafego>>> com JSON válido <<<END>>>`,
   },
   blueprint: {
     title: "Fase 6 — Consolidação (checklist + hipóteses)",
     reference: "templates/blueprint-mestre.md",
-    instructions: `Consolide checklist de implementação e hipóteses a validar.
-Ao final, emita APENAS <<<HERA_PHASE:blueprint>>> com JSON { checklist, hipoteses } <<<END>>>`,
   },
 };
 
@@ -71,37 +64,35 @@ async function loadReference(file: string | null): Promise<string> {
   }
 }
 
-function briefingBlock(operation: Operation, profile: MethodProfile | null): string {
-  const extensoes = profile?.extensoes
-    ? JSON.stringify(profile.extensoes, null, 2)
-    : "{}";
-
-  return `## Briefing (Fase 0)
-- Cliente B2B (ICP): ${operation.nicho}
-- Posicionamento da agência: ${operation.posicionamento}
-- Ticket cliente B2B→agência: ${operation.ticket_alvo}
-- Modelo de entrega: ${operation.modelo_entrega}
-- Restrições/compliance: ${operation.restricoes}
-
-## Extensões do operador
-${extensoes}`;
-}
-
 export async function buildPhaseMessages(
   phase: PhaseName,
   operation: Operation,
   profile: MethodProfile | null,
   sectionsSoFar: Record<string, unknown>,
 ): Promise<{ system: string; user: string }> {
-  const meta = { ...PHASE_META[phase] };
-  if (phase === "pesquisa") {
-    meta.instructions = buildPesquisaPhaseInstructions(operation);
-  }
+  const meta = PHASE_META[phase];
+  const instructions = buildPhaseInstructions(phase, operation);
+  const saas = isSaasB2B(operation);
   const contract = await loadOutputContract();
   const b2bModel = await loadReference("00-operador-b2b.md");
   const reference = await loadReference(meta.reference);
 
-  const system = `Você é o Arquiteto de Agência HERA — estrutura operações de AGÊNCIAS DE MARKETING (modelo B2B).
+  const system = saas
+    ? `Você é o Arquiteto GTM HERA — estrutura operações de SaaS/plataformas B2B.
+
+Regras absolutas:
+- ICP = empresas que COMPRAM o software. Concorrência = outras plataformas/soluções. Nunca inverta.
+- Foco em modelo de negócio para atrair, converter e reter empresas (GTM, vendas, CS).
+- Respeite compliance do briefing em toda copy gerada.
+- Marque estimativas como hipóteses a validar.
+- Sua resposta DEVE terminar com os blocos <<<HERA_...>>> — sem texto extra depois.
+
+## Modelo B2B do operador
+${b2bModel}
+
+## Contrato de saída
+${contract}`
+    : `Você é o Arquiteto de Agência HERA — estrutura operações de AGÊNCIAS DE MARKETING (modelo B2B).
 
 Regras absolutas:
 - ICP = quem contrata a agência. Concorrência = outras agências. Nunca inverta.
@@ -122,12 +113,12 @@ ${contract}`;
 
   const user = `${buildOperadorB2BContext(operation, profile)}
 
-${briefingBlock(operation, profile)}
+${buildBriefingBlock(operation, profile)}
 
 ${prior}## Tarefa atual
 ${meta.title}
 
-${meta.instructions}
+${instructions}
 
 ## Reference do método
 ${reference}`;
@@ -175,7 +166,7 @@ ${contract}`;
 
   const user = `${buildOperadorB2BContext(operation, profile)}
 
-${briefingBlock(operation, profile)}
+${buildBriefingBlock(operation, profile)}
 
 ${existingBlock}
 
@@ -221,7 +212,30 @@ export async function buildIntelScanMessages(
           .join("\n")}`
       : "## Já registrado no feed\nNenhum evento ainda.";
 
-  const system = `Você é um analista de inteligência competitiva para uma agência de marketing B2B.
+  const saas = isSaasB2B(operation);
+
+  const system = saas
+    ? `Você é analista de inteligência competitiva para um SaaS B2B.
+
+Busque na web atividade RECENTE (últimos 7–30 dias) de cada plataforma concorrente:
+- Changelog, releases, novas funcionalidades
+- Alterações de pricing/planos ou página de preços
+- Novos cases, parcerias ou integrações
+- Posts LinkedIn/blog de produto, webinars, eventos
+- Vagas abertas que indiquem expansão (vendas, produto)
+
+Regras:
+- Retorne SOMENTE novidades não listadas em "Já registrado".
+- event_type: release | pricing | landing | parceria | conteudo | outro
+- Inclua url quando encontrar link direto.
+- Se não houver novidade, omita (não invente).
+- Mínimo 0 eventos; máximo 15 no total.
+
+Resposta APENAS com:
+<<<HERA_INTEL>>>
+[ JSON array de eventos ]
+<<<END>>>`
+    : `Você é um analista de inteligência competitiva para uma agência de marketing B2B.
 
 Busque na web atividade RECENTE (últimos 7–14 dias) de cada agência concorrente:
 - Posts novos no Instagram/LinkedIn
@@ -243,7 +257,7 @@ Resposta APENAS com:
 
   const user = `${buildOperadorB2BContext(operation, profile)}
 
-## Agências a monitorar
+## ${saas ? "Plataformas" : "Agências"} a monitorar
 ${competitorList || "Nenhuma — retorne array vazio."}
 
 ${knownBlock}
@@ -252,8 +266,8 @@ ${knownBlock}
 Varredura de inteligência competitiva. Emita <<<HERA_INTEL>>> com array JSON:
 [
   {
-    "competitor_nome": "Nome da agência",
-    "event_type": "post|landing|criativo|oferta|outro",
+    "competitor_nome": "Nome do ${saas ? "player" : "concorrente"}",
+    "event_type": "${saas ? "release|pricing|landing|parceria|conteudo|outro" : "post|landing|criativo|oferta|outro"}",
     "titulo": "Título curto da novidade",
     "resumo": "1-2 frases do que mudou",
     "url": "https://...",

@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Zap } from "lucide-react";
+import { ArrowLeft, Building2, Layers, Zap } from "lucide-react";
 import { BRIEFING_TEMPLATES, getBriefingTemplate } from "@/lib/briefing-templates";
+import { briefingFormCopy } from "@/lib/briefing-form-config";
 import {
   OPERADOR_TIPO_OPTIONS,
   type OperadorTipo,
@@ -16,6 +17,7 @@ import { parseSeedsFromText } from "@/lib/concorrente-seeds";
 import type { Json } from "@/types/index";
 
 const schema = z.object({
+  operador_nome: z.string().min(2, "Informe o nome").max(120),
   nicho: z
     .string()
     .min(5, "Descreva o nicho com pelo menos 5 caracteres")
@@ -32,20 +34,11 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-const MODELOS = [
-  "Gestão de tráfego pago",
-  "Assessoria completa de marketing",
-  "Retainer mensal + setup inicial",
-  "Gestão de tráfego + assessoria estratégica",
-  "Consultoria estratégica pontual",
-  "SaaS por assinatura + implantação/onboarding",
-  "SaaS self-service + planos enterprise",
-];
-
 const DEFAULT_RESTRICOES =
   "Evitar promessas não comprováveis e superlativos vazios. Respeitar regulamentações do nicho (LGPD, conselhos de classe, claims financeiros). Toda copy deve ser verificável e informativa.";
 
 const BLANK_DEFAULTS: FormData = {
+  operador_nome: "",
   nicho: "",
   posicionamento: "",
   ticket_alvo: "",
@@ -54,14 +47,16 @@ const BLANK_DEFAULTS: FormData = {
   concorrentes_manuais: "",
 };
 
+type WizardStep = "tipo" | "briefing";
+
 export function NewOperationPage() {
   const { workspace, user } = useAuth();
   const navigate = useNavigate();
+  const [step, setStep] = useState<WizardStep>("tipo");
   const [templateId, setTemplateId] = useState("blank");
-  const [operadorTipo, setOperadorTipo] = useState<OperadorTipo>("agencia");
-  const [operadorPerfil, setOperadorPerfil] = useState<Record<string, unknown> | null>(
-    null,
-  );
+  const [operadorTipo, setOperadorTipo] = useState<OperadorTipo | null>(null);
+
+  const copy = operadorTipo ? briefingFormCopy(operadorTipo) : null;
 
   const {
     register,
@@ -73,11 +68,29 @@ export function NewOperationPage() {
     defaultValues: BLANK_DEFAULTS,
   });
 
+  const availableTemplates = BRIEFING_TEMPLATES.filter(
+    (t) => t.id === "blank" || t.operador_tipo === operadorTipo,
+  );
+
+  function selectTipo(tipo: OperadorTipo) {
+    setOperadorTipo(tipo);
+    setTemplateId("blank");
+    reset({
+      ...BLANK_DEFAULTS,
+      restricoes: DEFAULT_RESTRICOES,
+      modelo_entrega: briefingFormCopy(tipo).modelos[0] ?? "",
+    });
+    setStep("briefing");
+  }
+
   function applyTemplate(id: string) {
     setTemplateId(id);
     const t = getBriefingTemplate(id);
-    if (!t) return;
+    if (!t || !operadorTipo) return;
+    if (t.operador_tipo !== operadorTipo && t.id !== "blank") return;
+
     reset({
+      operador_nome: t.operador_perfil?.nome ?? "",
       nicho: t.nicho,
       posicionamento: t.posicionamento,
       ticket_alvo: t.ticket_alvo,
@@ -85,12 +98,32 @@ export function NewOperationPage() {
       restricoes: t.restricoes,
       concorrentes_manuais: t.concorrentes_manuais,
     });
-    setOperadorTipo(t.operador_tipo);
-    setOperadorPerfil(t.operador_perfil ? { ...t.operador_perfil } : null);
   }
 
   async function onSubmit(data: FormData) {
-    if (!workspace || !user) return;
+    if (!workspace || !user || !operadorTipo) return;
+
+    const template = getBriefingTemplate(templateId);
+    const perfilFromTemplate = template?.operador_perfil;
+
+    const operadorPerfil: Record<string, unknown> = {
+      tipo: operadorTipo,
+      nome: data.operador_nome.trim(),
+      ...(perfilFromTemplate
+        ? {
+            oferta: perfilFromTemplate.oferta,
+            ticket: perfilFromTemplate.ticket ?? data.ticket_alvo,
+            posicionamento: perfilFromTemplate.posicionamento ?? data.posicionamento,
+            pontos_fortes: perfilFromTemplate.pontos_fortes,
+            pontos_fracos: perfilFromTemplate.pontos_fracos,
+            notas: perfilFromTemplate.notas,
+          }
+        : {
+            oferta: data.posicionamento,
+            ticket: data.ticket_alvo,
+            posicionamento: data.posicionamento,
+          }),
+    };
 
     const { data: op, error } = await supabase
       .from("operations")
@@ -120,6 +153,7 @@ export function NewOperationPage() {
   }
 
   const selectedTemplate = getBriefingTemplate(templateId);
+  const tipoOption = OPERADOR_TIPO_OPTIONS.find((o) => o.value === operadorTipo);
 
   return (
     <main className="flex-1 overflow-y-auto p-6 lg:p-8">
@@ -127,7 +161,7 @@ export function NewOperationPage() {
         <div className="flex items-start gap-4">
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => (step === "briefing" ? setStep("tipo") : navigate("/"))}
             className="hera-btn-ghost mt-1"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -136,166 +170,196 @@ export function NewOperationPage() {
             <p className="hera-label mb-1">Briefing</p>
             <h1 className="font-serif text-2xl font-semibold text-foreground">Nova operação</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              O worker gera o Blueprint e o mapa de concorrência em background.
+              {step === "tipo"
+                ? "Primeiro passo: o que você está estruturando?"
+                : copy?.pageSubtitle}
             </p>
           </div>
         </div>
 
-        <div className="hera-card p-6 lg:p-8">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <Field
-            label="Tipo de operador"
-            hint="Define quem é o 'nós' e quem são os concorrentes no mapa"
-          >
-            <div className="space-y-2">
+        {step === "tipo" ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              O caminho muda conforme o tipo. Agência mapeia concorrentes de marketing; SaaS mapeia
+              players do mercado e GTM para atrair empresas.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
               {OPERADOR_TIPO_OPTIONS.map((opt) => (
-                <label
+                <button
                   key={opt.value}
-                  className={`flex items-start gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
-                    operadorTipo === opt.value
-                      ? "border-primary bg-primary/10"
-                      : "border-input hover:border-primary/40"
-                  }`}
+                  type="button"
+                  onClick={() => selectTipo(opt.value)}
+                  className="hera-card p-6 text-left hover:border-primary/50 transition-colors group"
                 >
-                  <input
-                    type="radio"
-                    name="operador_tipo"
-                    value={opt.value}
-                    checked={operadorTipo === opt.value}
-                    onChange={() => setOperadorTipo(opt.value)}
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="text-sm font-medium text-foreground block">{opt.label}</span>
-                    <span className="text-xs text-muted-foreground">{opt.description}</span>
-                  </span>
-                </label>
+                  <div className="flex items-center gap-3 mb-3">
+                    {opt.value === "saas_b2b" ? (
+                      <Layers className="h-6 w-6 text-primary" />
+                    ) : (
+                      <Building2 className="h-6 w-6 text-primary" />
+                    )}
+                    <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {opt.label}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{opt.description}</p>
+                </button>
               ))}
             </div>
-          </Field>
-
-          <Field
-            label="Template de briefing"
-            hint="Pré-preenche o formulário — você pode editar antes de enviar"
-          >
-            <select
-              className={inputCls(false)}
-              value={templateId}
-              onChange={(e) => applyTemplate(e.target.value)}
-            >
-              {BRIEFING_TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            {selectedTemplate && selectedTemplate.id !== "blank" && (
-              <p className="text-xs text-muted-foreground mt-1.5">
-                {selectedTemplate.description}
-              </p>
-            )}
-          </Field>
-
-          <Field
-            label="Quem é seu cliente B2B (ICP)"
-            hint="Quem contrata e paga sua agência — ex.: SaaS B2B, clínicas, indústrias"
-            error={errors.nicho?.message}
-          >
-            <input
-              type="text"
-              placeholder="Ex.: SaaS de homologação de fornecedores para empresas de médio porte"
-              className={inputCls(!!errors.nicho)}
-              {...register("nicho")}
-            />
-          </Field>
-
-          <Field
-            label="Posicionamento da sua agência"
-            hint="Como sua agência se vende para esse ICP"
-            error={errors.posicionamento?.message}
-          >
-            <textarea
-              rows={3}
-              placeholder="Agência de growth B2B especializada em..."
-              className={inputCls(!!errors.posicionamento)}
-              {...register("posicionamento")}
-            />
-          </Field>
-
-          <Field
-            label="Ticket do contrato (cliente B2B → agência)"
-            hint="Mensalidade/retainer que o cliente B2B paga a você — não o preço do produto que ele vende"
-            error={errors.ticket_alvo?.message}
-          >
-            <input
-              type="text"
-              placeholder="R$ 5.000 – R$ 15.000/mês"
-              className={inputCls(!!errors.ticket_alvo)}
-              {...register("ticket_alvo")}
-            />
-          </Field>
-
-          <Field
-            label="Modelo de entrega"
-            hint="Como você vai prestar o serviço"
-            error={errors.modelo_entrega?.message}
-          >
-            <select
-              className={inputCls(!!errors.modelo_entrega)}
-              defaultValue=""
-              {...register("modelo_entrega")}
-            >
-              <option value="" disabled>
-                Selecione um modelo...
-              </option>
-              {MODELOS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <Field
-            label="Agências concorrentes (opcional)"
-            hint="Uma por linha: Nome ou Nome | https://site.com — outras agências que atendem o mesmo ICP"
-            error={errors.concorrentes_manuais?.message}
-          >
-            <textarea
-              rows={4}
-              placeholder={"Agência X | https://site.com\nConsultoria Y | https://..."}
-              className={inputCls(!!errors.concorrentes_manuais)}
-              {...register("concorrentes_manuais")}
-            />
-          </Field>
-
-          <Field
-            label="Restrições e compliance do nicho"
-            hint="Promessas proibidas, LGPD, regulamentações do setor, limitações de copy"
-            error={errors.restricoes?.message}
-          >
-            <textarea
-              rows={4}
-              className={inputCls(!!errors.restricoes)}
-              {...register("restricoes")}
-            />
-          </Field>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              disabled={isSubmitting || !workspace}
-              className="w-full hera-btn-primary justify-center py-3"
-            >
-              <Zap className="h-4 w-4" />
-              {isSubmitting ? "Criando operação..." : "Iniciar Blueprint"}
-            </button>
-            <p className="text-center text-xs text-muted-foreground mt-2">
-              Fase 1 mapeia dores do ICP e agências concorrentes do operador. Job de 20–30 min em background.
-            </p>
           </div>
-        </form>
-        </div>
+        ) : (
+          operadorTipo &&
+          copy && (
+            <div className="hera-card p-6 lg:p-8">
+              <div className="flex flex-wrap items-center gap-2 mb-6 pb-4 border-b border-border">
+                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                  {tipoOption?.label}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setStep("tipo")}
+                  className="text-xs text-muted-foreground hover:text-primary"
+                >
+                  Trocar tipo
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <Field
+                  label="Template de briefing"
+                  hint="Só templates compatíveis com o tipo selecionado"
+                >
+                  <select
+                    className={inputCls(false)}
+                    value={templateId}
+                    onChange={(e) => applyTemplate(e.target.value)}
+                  >
+                    {availableTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTemplate && selectedTemplate.id !== "blank" && (
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      {selectedTemplate.description}
+                    </p>
+                  )}
+                </Field>
+
+                <Field
+                  label={copy.operadorNome.label}
+                  hint={copy.operadorNome.hint}
+                  error={errors.operador_nome?.message}
+                >
+                  <input
+                    type="text"
+                    placeholder={copy.operadorNome.placeholder}
+                    className={inputCls(!!errors.operador_nome)}
+                    {...register("operador_nome")}
+                  />
+                </Field>
+
+                <Field
+                  label={copy.nicho.label}
+                  hint={copy.nicho.hint}
+                  error={errors.nicho?.message}
+                >
+                  <input
+                    type="text"
+                    placeholder={copy.nicho.placeholder}
+                    className={inputCls(!!errors.nicho)}
+                    {...register("nicho")}
+                  />
+                </Field>
+
+                <Field
+                  label={copy.posicionamento.label}
+                  hint={copy.posicionamento.hint}
+                  error={errors.posicionamento?.message}
+                >
+                  <textarea
+                    rows={3}
+                    placeholder={copy.posicionamento.placeholder}
+                    className={inputCls(!!errors.posicionamento)}
+                    {...register("posicionamento")}
+                  />
+                </Field>
+
+                <Field
+                  label={copy.ticket.label}
+                  hint={copy.ticket.hint}
+                  error={errors.ticket_alvo?.message}
+                >
+                  <input
+                    type="text"
+                    placeholder={copy.ticket.placeholder}
+                    className={inputCls(!!errors.ticket_alvo)}
+                    {...register("ticket_alvo")}
+                  />
+                </Field>
+
+                <Field
+                  label={copy.modelo.label}
+                  hint={copy.modelo.hint}
+                  error={errors.modelo_entrega?.message}
+                >
+                  <select
+                    className={inputCls(!!errors.modelo_entrega)}
+                    {...register("modelo_entrega")}
+                  >
+                    <option value="" disabled>
+                      Selecione um modelo...
+                    </option>
+                    {copy.modelos.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field
+                  label={copy.concorrentes.label}
+                  hint={copy.concorrentes.hint}
+                  error={errors.concorrentes_manuais?.message}
+                >
+                  <textarea
+                    rows={4}
+                    placeholder={copy.concorrentes.placeholder}
+                    className={inputCls(!!errors.concorrentes_manuais)}
+                    {...register("concorrentes_manuais")}
+                  />
+                </Field>
+
+                <Field
+                  label="Restrições e compliance do nicho"
+                  hint="Promessas proibidas, LGPD, regulamentações do setor, limitações de copy"
+                  error={errors.restricoes?.message}
+                >
+                  <textarea
+                    rows={4}
+                    className={inputCls(!!errors.restricoes)}
+                    {...register("restricoes")}
+                  />
+                </Field>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !workspace}
+                    className="w-full hera-btn-primary justify-center py-3"
+                  >
+                    <Zap className="h-4 w-4" />
+                    {isSubmitting ? "Criando operação..." : copy.submitLabel}
+                  </button>
+                  <p className="text-center text-xs text-muted-foreground mt-2">
+                    {copy.submitHint}
+                  </p>
+                </div>
+              </form>
+            </div>
+          )
+        )}
       </div>
     </main>
   );
