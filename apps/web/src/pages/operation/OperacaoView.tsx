@@ -324,7 +324,7 @@ export function OperacaoView() {
               title={`Ver tendência de ${label}`}
             >
               <div>
-                <p className="text-2xl font-serif font-semibold text-foreground leading-none">
+                <p className="hera-mono text-2xl font-semibold text-foreground leading-none">
                   {curVal}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wide">

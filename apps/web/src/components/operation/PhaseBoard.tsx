@@ -122,7 +122,7 @@ export function PhaseBoard({
           <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
           <div>
             <p className="text-sm font-medium text-foreground">Erro no processamento</p>
-            <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+            <p className="hera-mono text-xs text-muted-foreground mt-0.5">
               {operation.error ?? "Erro desconhecido"}
             </p>
           </div>
@@ -147,7 +147,7 @@ export function PhaseBoard({
                 className={[
                   "w-52 shrink-0 flex flex-col rounded-lg border",
                   isCurrent
-                    ? "border-hera-running/50 bg-hera-running/5"
+                    ? "phase-running bg-hera-cyan/5"
                     : phaseStatus === "done"
                       ? "border-hera-done/30 bg-hera-surface/50"
                       : "border-border bg-hera-surface/30",
@@ -155,7 +155,7 @@ export function PhaseBoard({
               >
                 <div className="px-3 py-3 border-b border-border/60">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-mono text-muted-foreground">
+                    <span className="hera-mono text-[10px] text-muted-foreground">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <PhaseStatusIcon status={phaseStatus} isCurrent={isCurrent} />
@@ -211,7 +211,7 @@ export function PhaseBoard({
                     )}
 
                   {event?.log && (phaseStatus === "running" || isCurrent) && (
-                    <p className="text-[10px] text-muted-foreground font-mono line-clamp-3 px-1">
+                    <p className="hera-mono text-[10px] text-muted-foreground line-clamp-3 px-1">
                       {event.log.split("\n").pop()}
                     </p>
                   )}
@@ -297,7 +297,7 @@ function KpiCard({
   const inner = (
     <>
       <p className="hera-label">{label}</p>
-      <p className="text-sm font-semibold text-foreground mt-1 truncate">{value}</p>
+      <p className="hera-mono text-sm font-semibold text-foreground mt-1 truncate">{value}</p>
     </>
   );
 

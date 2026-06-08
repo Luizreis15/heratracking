@@ -2,7 +2,7 @@ import { Loader2 } from "lucide-react";
 
 const CONFIG: Record<
   string,
-  { label: string; className: string; dot: string }
+  { label: string; className: string; extraClass?: string; dot: string }
 > = {
   queued: {
     label: "Na fila",
@@ -11,17 +11,20 @@ const CONFIG: Record<
   },
   running: {
     label: "Em curso",
-    className: "bg-hera-running/15 text-hera-running border-hera-running/30",
-    dot: "bg-hera-running",
+    className: "bg-hera-cyan/10 border-hera-cyan/30",
+    extraClass: "badge-running",
+    dot: "bg-hera-cyan",
   },
   done: {
     label: "Concluído",
-    className: "bg-hera-done/15 text-hera-done border-hera-done/30",
-    dot: "bg-hera-done",
+    className: "bg-hera-gold/10 border-hera-gold/30",
+    extraClass: "badge-done",
+    dot: "bg-hera-gold",
   },
   error: {
     label: "Erro",
-    className: "bg-destructive/15 text-destructive border-destructive/30",
+    className: "bg-destructive/15 border-destructive/30",
+    extraClass: "badge-error",
     dot: "bg-destructive",
   },
   pending: {
@@ -45,6 +48,7 @@ export function StatusBadge({
         "inline-flex items-center gap-1.5 font-medium border rounded-full",
         size === "sm" ? "text-xs px-2.5 py-1" : "text-[10px] px-2 py-0.5",
         cfg.className,
+        cfg.extraClass ?? "",
       ].join(" ")}
     >
       {status === "running" ? (

@@ -179,7 +179,7 @@ function StatCard({
   return (
     <div className="hera-card px-4 py-4">
       <p className="hera-label">{label}</p>
-      <p className={`text-2xl font-serif font-semibold mt-1 ${accentClass}`}>{value}</p>
+      <p className={`hera-mono text-2xl font-semibold mt-1 ${accentClass}`}>{value}</p>
     </div>
   );
 }

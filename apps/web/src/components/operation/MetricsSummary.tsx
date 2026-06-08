@@ -53,8 +53,8 @@ export function MetricsSummary({ operationId, currentMonth, compact }: Props) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {METRIC_LABELS.map(({ key, short }) => (
-            <div key={key} className="rounded-md bg-accent/40 px-2.5 py-2 text-center">
-              <p className="text-lg font-serif font-semibold text-foreground leading-none">
+            <div key={key} className="hera-card px-2.5 py-2 text-center">
+              <p className="hera-mono text-lg font-semibold text-foreground leading-none">
                 {fields[key]}
               </p>
               <p className="text-[9px] text-muted-foreground mt-1 uppercase tracking-wide">

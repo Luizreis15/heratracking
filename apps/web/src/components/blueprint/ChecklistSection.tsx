@@ -98,10 +98,10 @@ export function ChecklistSection({ data, operationId }: Props) {
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="text-sm font-semibold text-foreground shrink-0">
+        <span className="hera-mono text-sm font-semibold text-foreground shrink-0">
           {doneCount}/{parsed.length}
         </span>
-        <span className="text-xs text-muted-foreground shrink-0">{pct}% concluído</span>
+        <span className="hera-mono text-xs text-muted-foreground shrink-0">{pct}% concluído</span>
       </div>
 
       {/* Items */}
