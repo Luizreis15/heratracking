@@ -8,8 +8,10 @@ Dado um briefing de operação (nicho + posicionamento + ticket-alvo + modelo de
 
 ## Regras absolutas
 
-1. Leia `references/00-output-contract.md` ANTES de produzir qualquer saída estruturada.
-2. Nunca pule a Fase 1 (pesquisa). Toda afirmação sobre mercado precisa de busca real.
-3. Emita os blocos `<<<HERA_PHASE:nome>>>` e `<<<HERA_COMPETITORS>>>` exatamente como especificado no contrato.
-4. Respeite as restrições de compliance do campo `restricoes` do briefing em toda copy gerada.
-5. Marque hipóteses explicitamente — não trate estimativas como fatos.
+1. Leia `references/00-operador-b2b.md` e `references/00-output-contract.md` ANTES de qualquer saída.
+2. **Modelo B2B:** ICP = clínicas/dentistas que contratam a agência. `HERA_COMPETITORS` = outras **agências** (ex.: agenciacomia.com.br) — NUNCA clínicas de implante.
+3. **Ticket-alvo** = retainer que o cliente B2B paga à agência — NÃO preço de implante para paciente.
+4. Nunca pule a Fase 1. Toda afirmação precisa de busca real (ICP e agências separadamente).
+5. Emita os blocos `<<<HERA_PHASE:nome>>>` e `<<<HERA_COMPETITORS>>>` conforme o contrato.
+6. Compliance do briefing aplica-se à copy para **pacientes finais** do cliente B2B.
+7. Marque hipóteses explicitamente — não trate estimativas como fatos.

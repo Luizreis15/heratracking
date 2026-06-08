@@ -13,7 +13,8 @@ alter table workspaces enable row level security;
 create policy "workspaces_select"
   on workspaces for select
   using (
-    id in (select workspace_id from workspace_members where user_id = auth.uid())
+    owner_id = auth.uid()
+    or id in (select workspace_id from workspace_members where user_id = auth.uid())
   );
 
 create policy "workspaces_insert"

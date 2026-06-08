@@ -105,6 +105,12 @@ Emita um bloco delimitado exatamente neste formato (sem espaços extras nas tags
 
 ## Bloco de concorrentes (fase pesquisa)
 
+**Concorrência = outras AGÊNCIAS que vendem marketing para o mesmo nicho B2B.**
+NÃO liste clínicas odontológicas, redes de implante nem fabricantes.
+Leia `references/00-operador-b2b.md` antes de preencher este bloco.
+
+`ticket_estimado` = mensalidade/retainer que a **agência concorrente cobra do dentista/clínica** (não preço de implante para paciente).
+
 Imediatamente após o bloco `<<<HERA_PHASE:pesquisa>>>`, emita também:
 
 ```
@@ -126,7 +132,7 @@ Imediatamente após o bloco `<<<HERA_PHASE:pesquisa>>>`, emita também:
 <<<END>>>
 ```
 
-Inclua **no mínimo 3 concorrentes** identificados na pesquisa.
+Inclua **no mínimo 3 agências/concorrentes do operador** (ex.: agenciacomia.com.br e similares).
 
 ## Regras de compliance (Hera DG — odontologia)
 

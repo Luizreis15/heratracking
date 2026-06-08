@@ -1,29 +1,12 @@
 import "dotenv/config";
-import { z } from "zod";
-
-const EnvSchema = z.object({
-  ANTHROPIC_API_KEY: z.string().min(1),
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  POLL_INTERVAL_MS: z.coerce.number().default(5000),
-});
-
-function loadEnv() {
-  const result = EnvSchema.safeParse(process.env);
-  if (!result.success) {
-    console.warn("[worker] Variáveis de ambiente ausentes ou inválidas:");
-    const flat = result.error.flatten().fieldErrors;
-    for (const [field, errors] of Object.entries(flat)) {
-      console.warn(`  ${field}: ${errors?.join(", ")}`);
-    }
-    console.warn("[worker] Copie apps/worker/.env.example para apps/worker/.env e preencha os valores.");
-    return null;
-  }
-  return result.data;
-}
+import { loadEnv } from "./env.js";
+import { createServiceClient } from "./supabase.js";
+import { maybeQueueStaleIntelScan } from "./intel-scheduler.js";
+import { fetchNextQueued } from "./persist.js";
+import { runJob } from "./run-job.js";
 
 async function main() {
-  console.log("[worker] HERA Arquiteto worker iniciado — F0 scaffold");
+  console.log("[worker] HERA Arquiteto worker iniciado — F4");
 
   const env = loadEnv();
   if (!env) {
@@ -31,9 +14,36 @@ async function main() {
     return;
   }
 
-  console.log(`[worker] Supabase URL: ${env.SUPABASE_URL}`);
-  console.log("[worker] Aguardando jobs na fila... (F4 implementa o loop real)");
-  // F4 implementará: loop de poll → pega operations(queued) → roda skill via Agent SDK
+  const supabase = createServiceClient(env);
+  let processing = false;
+
+  console.log(`[worker] Supabase: ${env.SUPABASE_URL}`);
+  console.log("[worker] Motores híbridos:");
+  console.log(`  BOM full     → Perplexity (${env.PERPLEXITY_MODEL}) pesquisa + Claude fases 2–6`);
+  console.log("  Concorrência → Perplexity (web)");
+  console.log("  Intel        → Meta Graph + Perplexity (web)");
+  console.log("  Comparativo  → Claude (síntese estratégica)");
+  console.log(`[worker] Poll a cada ${env.POLL_INTERVAL_MS}ms — aguardando jobs queued`);
+
+  const tick = async () => {
+    if (processing) return;
+    processing = true;
+    try {
+      const next = await fetchNextQueued(supabase);
+      if (next) {
+        await runJob(supabase, next, env);
+      } else if (env.INTEL_AUTO_SCAN_HOURS > 0) {
+        await maybeQueueStaleIntelScan(supabase, env.INTEL_AUTO_SCAN_HOURS);
+      }
+    } catch (err) {
+      console.error("[worker] Erro no poll loop:", err);
+    } finally {
+      processing = false;
+    }
+  };
+
+  await tick();
+  setInterval(() => void tick(), env.POLL_INTERVAL_MS);
 }
 
 main().catch((err: unknown) => {
