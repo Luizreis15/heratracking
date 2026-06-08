@@ -2,9 +2,6 @@ import { useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Users } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
-import { parseOperadorFromOperation } from "@/lib/operador-profile";
-import { ComparisonMatrix } from "@/components/operation/ComparisonMatrix";
 import { supabase } from "@/lib/supabase";
 import {
   formatSeedsForTextarea,
@@ -18,11 +15,6 @@ import type { OperationContext } from "./operation-context";
 
 export function ConcorrenciaView() {
   const { operation, competitors } = useOutletContext<OperationContext>();
-  const { workspace } = useAuth();
-  const operador = parseOperadorFromOperation(
-    operation,
-    workspace?.name?.trim() || "Minha empresa",
-  );
   const existingSeeds = parseSeedsFromJson(operation.concorrentes_seeds);
   const busy = operation.status === "queued" || operation.status === "running";
 
@@ -34,12 +26,10 @@ export function ConcorrenciaView() {
           Agências Concorrentes
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Outras agências que vendem marketing para o mesmo nicho B2B — não clínicas de implante.{" "}
-          <Link
-            to={`/operations/${operation.id}/hera-dg`}
-            className="text-primary hover:underline"
-          >
-            Comparar com minha empresa →
+          Dados brutos no banco — ticket, oferta, posicionamento de cada agência. Para decisões
+          estratégicas, use{" "}
+          <Link to={`/operations/${operation.id}/hera-dg`} className="text-primary hover:underline">
+            Análise →
           </Link>
         </p>
       </div>
@@ -63,23 +53,17 @@ export function ConcorrenciaView() {
       )}
 
       {competitors.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <p className="hera-label mb-1">Visão geral</p>
-              <h2 className="font-serif text-lg font-semibold text-foreground">
-                Matriz comparativa
-              </h2>
-            </div>
-            <Link
-              to={`/operations/${operation.id}/hera-dg`}
-              className="text-xs text-primary hover:underline"
-            >
-              Editar minha empresa
-            </Link>
-          </div>
-          <ComparisonMatrix operador={operador} competitors={competitors} />
-        </div>
+        <Link
+          to={`/operations/${operation.id}/hera-dg`}
+          className="hera-card block p-4 border-primary/20 hover:border-primary/40 transition-colors"
+        >
+          <p className="text-sm font-medium text-foreground">
+            {competitors.length} agências mapeadas — gerar análise comparativa
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            A matriz lado a lado foi substituída por síntese para decisão na aba Análise.
+          </p>
+        </Link>
       )}
 
       {competitors.length === 0 ? (
