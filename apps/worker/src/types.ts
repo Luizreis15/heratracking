@@ -30,6 +30,7 @@ export type Operation = {
   cost_usd: number | null;
   error: string | null;
   created_at: string;
+  updated_at: string;
   finished_at: string | null;
 };
 

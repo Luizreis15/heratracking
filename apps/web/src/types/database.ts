@@ -395,6 +395,7 @@ export type Database = {
           restricoes: string
           status: string
           ticket_alvo: string
+          updated_at: string
           workspace_id: string
         }
         Insert: {
@@ -417,6 +418,7 @@ export type Database = {
           restricoes?: string
           status?: string
           ticket_alvo: string
+          updated_at?: string
           workspace_id: string
         }
         Update: {
@@ -439,6 +441,7 @@ export type Database = {
           restricoes?: string
           status?: string
           ticket_alvo?: string
+          updated_at?: string
           workspace_id?: string
         }
         Relationships: [

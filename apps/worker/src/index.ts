@@ -2,7 +2,7 @@ import "dotenv/config";
 import { loadEnv } from "./env.js";
 import { createServiceClient } from "./supabase.js";
 import { maybeQueueStaleIntelScan } from "./intel-scheduler.js";
-import { fetchNextQueued } from "./persist.js";
+import { fetchNextQueued, recoverStaleJobs } from "./persist.js";
 import { runJob } from "./run-job.js";
 
 async function main() {
@@ -29,6 +29,9 @@ async function main() {
     if (processing) return;
     processing = true;
     try {
+      // Detecta e reseta jobs travados de runs anteriores que crasharam
+      await recoverStaleJobs(supabase);
+
       const next = await fetchNextQueued(supabase);
       if (next) {
         await runJob(supabase, next, env);

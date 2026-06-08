@@ -430,3 +430,48 @@ export async function markOperationError(
 
   if (error) console.error(`[worker] Falha ao gravar erro: ${error.message}`);
 }
+
+/**
+ * Detecta operações travadas em status=running por mais de `thresholdMs`
+ * (ex: worker crashou no meio do job) e reseta para status=error.
+ * O filtro `.eq("status","running")` no UPDATE garante que um job que
+ * terminou entre o SELECT e o UPDATE não seja afetado.
+ */
+export async function recoverStaleJobs(
+  supabase: SupabaseClient,
+  thresholdMs = 45 * 60 * 1000,
+): Promise<void> {
+  const cutoff = new Date(Date.now() - thresholdMs).toISOString();
+
+  const { data: stale, error: fetchErr } = await supabase
+    .from("operations")
+    .select("id, nicho, current_phase")
+    .eq("status", "running")
+    .lt("updated_at", cutoff);
+
+  if (fetchErr) {
+    console.warn(`[worker][stale] Falha ao buscar jobs travados: ${fetchErr.message}`);
+    return;
+  }
+  if (!stale || stale.length === 0) return;
+
+  for (const op of stale) {
+    console.warn(
+      `[worker][stale] Job travado detectado: ${op.id} (${op.nicho}) fase ${op.current_phase} — resetando para error`,
+    );
+
+    const { error: updateErr } = await supabase
+      .from("operations")
+      .update({
+        status: "error",
+        error: "Operação travada por mais de 45 min — reinicie manualmente.",
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", op.id)
+      .eq("status", "running"); // guard: evita sobrescrever job que terminou no intervalo
+
+    if (updateErr) {
+      console.warn(`[worker][stale] Falha ao resetar ${op.id}: ${updateErr.message}`);
+    }
+  }
+}
