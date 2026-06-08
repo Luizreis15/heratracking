@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { StatusBadge, PhaseProgressDots } from "@/components/ui/StatusBadge";
 import { PHASES, phaseIndex } from "@/lib/phases";
+import { useAnimatedCount } from "@/hooks/useAnimatedCount";
 import type { Operation, PhaseEvent } from "@/types/index";
 
 export function DashboardPage() {
@@ -71,9 +72,9 @@ export function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatCard label="Total" value={String(operations.length)} />
-            <StatCard label="Em processamento" value={String(activeCount)} accent="running" />
-            <StatCard label="Concluídas" value={String(doneCount)} accent="done" />
+            <StatCard label="Total" value={String(operations.length)} delay={0} />
+            <StatCard label="Em processamento" value={String(activeCount)} accent="running" delay={1} />
+            <StatCard label="Concluídas" value={String(doneCount)} accent="done" delay={2} />
           </div>
 
           {opsLoading ? (
@@ -83,10 +84,11 @@ export function DashboardPage() {
           ) : (
             <div className="space-y-3">
               <p className="hera-label">Suas operações</p>
-              {operations.map((op) => (
+              {operations.map((op, i) => (
                 <OperationCard
                   key={op.id}
                   operation={op}
+                  index={i}
                   onClick={() => navigate(`/operations/${op.id}`)}
                 />
               ))}
@@ -100,9 +102,11 @@ export function DashboardPage() {
 
 function OperationCard({
   operation,
+  index,
   onClick,
 }: {
   operation: Operation;
+  index: number;
   onClick: () => void;
 }) {
   const { data: phaseEvents = [] } = useQuery<PhaseEvent[]>({
@@ -130,6 +134,10 @@ function OperationCard({
       type="button"
       onClick={onClick}
       className="w-full hera-card px-4 py-4 hover:border-primary/40 transition-colors text-left group"
+      style={{
+        animation: "reveal-up 0.4s ease-out both",
+        animationDelay: `${index * 0.07}s`,
+      }}
     >
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
@@ -164,11 +172,17 @@ function StatCard({
   label,
   value,
   accent,
+  delay = 0,
 }: {
   label: string;
   value: string;
   accent?: "running" | "done";
+  delay?: number;
 }) {
+  const num = parseInt(value, 10);
+  const animated = useAnimatedCount(isNaN(num) ? 0 : num);
+  const display = isNaN(num) ? value : String(animated);
+
   const accentClass =
     accent === "running"
       ? "text-hera-running"
@@ -177,9 +191,12 @@ function StatCard({
         : "text-foreground";
 
   return (
-    <div className="hera-card px-4 py-4">
+    <div
+      className="hera-card px-4 py-4"
+      style={{ animation: "reveal-up 0.4s ease-out both", animationDelay: `${delay * 0.07}s` }}
+    >
       <p className="hera-label">{label}</p>
-      <p className={`hera-mono text-2xl font-semibold mt-1 ${accentClass}`}>{value}</p>
+      <p className={`hera-mono text-2xl font-semibold mt-1 ${accentClass}`}>{display}</p>
     </div>
   );
 }

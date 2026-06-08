@@ -11,6 +11,7 @@ import { BLUEPRINT_SECTIONS } from "@/lib/blueprint-sections";
 import { PHASES, phaseIndex } from "@/lib/phases";
 import { MetricsSummary } from "@/components/operation/MetricsSummary";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useTypewriter } from "@/hooks/useTypewriter";
 import type { Operation, OperationMetric, PhaseEvent } from "@/types/index";
 import type { Json } from "@/types/index";
 
@@ -57,17 +58,19 @@ export function PhaseBoard({
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiCard label="Ticket-alvo" value={operation.ticket_alvo} />
-        <KpiCard label="Modelo" value={operation.modelo_entrega} />
+        <KpiCard label="Ticket-alvo" value={operation.ticket_alvo} delay={0} />
+        <KpiCard label="Modelo" value={operation.modelo_entrega} delay={1} />
         <KpiCard
           label="Concorrentes"
           value={String(competitorCount)}
           href={`/operations/${operationId}/concorrencia`}
+          delay={2}
         />
         <KpiCard
           label="Análise"
           value="Perfil interno"
           href={`/operations/${operationId}/analise`}
+          delay={3}
         />
         <KpiCard
           label="Operação"
@@ -77,10 +80,12 @@ export function PhaseBoard({
               : "KPIs"
           }
           href={`/operations/${operationId}/operacao`}
+          delay={4}
         />
         <KpiCard
           label="Custo IA"
           value={operation.cost_usd ? `$${Number(operation.cost_usd).toFixed(2)}` : "—"}
+          delay={5}
         />
       </div>
 
@@ -104,17 +109,20 @@ export function PhaseBoard({
       </div>
 
       {(operation.status === "queued" || operation.status === "running") && (
-        <div className="flex items-center gap-3 hera-card px-4 py-3 border-hera-running/30">
-          <Loader2 className="h-5 w-5 text-hera-running animate-spin shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              {operation.status === "queued" ? "Na fila do worker" : "Gerando entregáveis..."}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              As colunas atualizam automaticamente conforme cada fase conclui.
-            </p>
+        <>
+          <div className="hera-progress-bar" />
+          <div className="flex items-center gap-3 hera-card px-4 py-3 border-hera-cyan/20">
+            <Loader2 className="h-5 w-5 text-hera-cyan animate-spin shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {operation.status === "queued" ? "Na fila do worker" : "Gerando entregáveis..."}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                As colunas atualizam automaticamente conforme cada fase conclui.
+              </p>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {operation.status === "error" && (
@@ -152,6 +160,10 @@ export function PhaseBoard({
                       ? "border-hera-done/30 bg-hera-surface/50"
                       : "border-border bg-hera-surface/30",
                 ].join(" ")}
+                style={{
+                  animation: "reveal-up 0.45s ease-out both",
+                  animationDelay: `${i * 0.08}s`,
+                }}
               >
                 <div className="px-3 py-3 border-b border-border/60">
                   <div className="flex items-center justify-between gap-2">
@@ -211,9 +223,7 @@ export function PhaseBoard({
                     )}
 
                   {event?.log && (phaseStatus === "running" || isCurrent) && (
-                    <p className="hera-mono text-[10px] text-muted-foreground line-clamp-3 px-1">
-                      {event.log.split("\n").pop()}
-                    </p>
+                    <PhaseLog log={event.log} active={phaseStatus === "running" || isCurrent} />
                   )}
                 </div>
               </div>
@@ -243,6 +253,17 @@ export function PhaseBoard({
         </div>
       )}
     </div>
+  );
+}
+
+function PhaseLog({ log, active }: { log: string; active: boolean }) {
+  const lastLine = log.split("\n").filter(Boolean).pop() ?? "";
+  const { displayed, done } = useTypewriter(lastLine, active);
+  return (
+    <p className="hera-mono text-[10px] text-muted-foreground px-1 line-clamp-2">
+      {displayed}
+      {!done && active && <span className="hera-typewriter-cursor" />}
+    </p>
   );
 }
 
@@ -289,11 +310,14 @@ function KpiCard({
   label,
   value,
   href,
+  delay = 0,
 }: {
   label: string;
   value: string;
   href?: string;
+  delay?: number;
 }) {
+  const style = { animation: "reveal-up 0.4s ease-out both", animationDelay: `${delay * 0.06}s` };
   const inner = (
     <>
       <p className="hera-label">{label}</p>
@@ -303,12 +327,12 @@ function KpiCard({
 
   if (href) {
     return (
-      <Link to={href} className="hera-card px-3 py-2.5 hover:border-primary/40 transition-colors">
+      <Link to={href} className="hera-card px-3 py-2.5 hover:border-primary/40 transition-colors" style={style}>
         {inner}
       </Link>
     );
   }
-  return <div className="hera-card px-3 py-2.5">{inner}</div>;
+  return <div className="hera-card px-3 py-2.5" style={style}>{inner}</div>;
 }
 
 function PhaseStatusIcon({
