@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useOutletContext } from "react-router-dom";
+import { NavLink, Outlet, useOutletContext, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Download, ChevronDown, Printer } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { SectionShell } from "@/components/blueprint/SectionShell";
 import { MercadoIcpSection } from "@/components/blueprint/MercadoIcpSection";
 import { OfertaEscadaSection } from "@/components/blueprint/OfertaEscadaSection";
 import { ComercialSection } from "@/components/blueprint/ComercialSection";
@@ -16,13 +16,13 @@ import { blueprintToMarkdown, downloadMarkdown } from "@/lib/blueprint-export";
 import type { Json } from "@/types/index";
 import type { OperationContext } from "./operation-context";
 
-type SectionDef = {
+export type SectionDef = {
   key: string;
   label: string;
   render: (data: Json, operationId: string, spinGuide?: Json | null) => React.ReactNode;
 };
 
-const SECTION_DEFS: SectionDef[] = [
+export const SECTION_DEFS: SectionDef[] = [
   {
     key: "mercado_icp",
     label: "Mercado + ICP",
@@ -65,16 +65,39 @@ const SECTION_DEFS: SectionDef[] = [
   },
 ];
 
-export function BlueprintView() {
-  const { operation, sections, operationId, blueprint } = useOutletContext<OperationContext>();
+export type BlueprintLayoutContext = OperationContext & {
+  makeRefineHandler: (sectionKey: string) => (instruction: string) => Promise<void>;
+  isAnyRefining: boolean;
+  refiningSection: string | null;
+  spinGuide: Json | null;
+  filledSections: SectionDef[];
+};
+
+export function BlueprintLayout() {
+  const ctx = useOutletContext<OperationContext>();
+  const { operation, sections, operationId, blueprint } = ctx;
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { sectionKey } = useParams<{ sectionKey?: string }>();
+
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
-  const [isPrinting, setIsPrinting] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("mercado_icp");
   const exportRef = useRef<HTMLDivElement>(null);
 
+  const spinGuide = blueprint?.spin_guide ?? null;
+  const isAnyRefining = operation.status === "queued" || operation.status === "running";
+  const filledSections = SECTION_DEFS.filter((s) => sections[s.key] != null);
+  const firstKey = filledSections[0]?.key;
+
+  // Redirect to first section when landing on /blueprint with no section
+  useEffect(() => {
+    if (!sectionKey && firstKey) {
+      navigate(`/operations/${operationId}/blueprint/${firstKey}`, { replace: true });
+    }
+  }, [sectionKey, firstKey, operationId, navigate]);
+
+  // Clear refining state when job finishes
   useEffect(() => {
     if (operation.status === "done" && refiningSection !== null) {
       setRefiningSection(null);
@@ -82,7 +105,6 @@ export function BlueprintView() {
     }
   }, [operation.status, refiningSection, operationId, queryClient]);
 
-  // Close export dropdown when clicking outside
   useEffect(() => {
     if (!exportOpen) return;
     function handle(e: MouseEvent) {
@@ -94,19 +116,32 @@ export function BlueprintView() {
     return () => document.removeEventListener("mousedown", handle);
   }, [exportOpen]);
 
+  const makeRefineHandler = useCallback(
+    (key: string) => async (instruction: string) => {
+      setRefiningSection(key);
+      const { error } = await supabase
+        .from("operations")
+        .update({
+          job_mode: "refine_section",
+          status: "queued",
+          refine_params: { section_key: key, instruction },
+          error: null,
+          finished_at: null,
+        })
+        .eq("id", operationId);
+      if (error) {
+        setRefiningSection(null);
+        throw new Error(error.message);
+      }
+      void queryClient.invalidateQueries({ queryKey: ["operation", operationId] });
+    },
+    [operationId, queryClient],
+  );
+
   const handlePdfExport = useCallback(() => {
     setExportOpen(false);
-    setIsPrinting(true);
-    // Let React render with forceOpen before triggering print
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.print();
-        setIsPrinting(false);
-      });
-    });
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
   }, []);
-
-  const spinGuide = blueprint?.spin_guide ?? null;
 
   const handleMdExport = useCallback(() => {
     setExportOpen(false);
@@ -119,67 +154,42 @@ export function BlueprintView() {
     downloadMarkdown(md, operation.nicho);
   }, [sections, operation.nicho, operation.posicionamento, spinGuide]);
 
-  const makeRefineHandler = useCallback(
-    (sectionKey: string) => async (instruction: string) => {
-      setRefiningSection(sectionKey);
-      const { error } = await supabase.from("operations").update({
-        job_mode: "refine_section",
-        status: "queued",
-        refine_params: { section_key: sectionKey, instruction },
-        error: null,
-        finished_at: null,
-      }).eq("id", operationId);
-
-      if (error) {
-        setRefiningSection(null);
-        throw new Error(error.message);
-      }
-
-      // Trigger polling — OperationLayout polls when status is queued/running
-      void queryClient.invalidateQueries({ queryKey: ["operation", operationId] });
-    },
-    [operationId, queryClient],
-  );
-
-  const filledSections = SECTION_DEFS.filter((s) => sections[s.key] != null);
-
-  useEffect(() => {
-    if (filledSections.length > 0 && !filledSections.some((s) => s.key === activeSection)) {
-      setActiveSection(filledSections[0].key);
-    }
-  }, [filledSections, activeSection]);
-
   if (filledSections.length === 0) {
     return (
-      <EmptyDeliverable
-        title="Blueprint ainda não disponível"
-        message={
-          operation.status === "running" || operation.status === "queued"
+      <div className="hera-card p-12 text-center space-y-3 max-w-lg mx-auto">
+        <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto" />
+        <h3 className="text-lg font-semibold text-foreground">Blueprint ainda não disponível</h3>
+        <p className="text-sm text-muted-foreground">
+          {operation.status === "running" || operation.status === "queued"
             ? "As seções aparecem conforme o worker conclui cada fase."
-            : "Nenhuma seção foi gravada para esta operação."
-        }
-      />
+            : "Nenhuma seção foi gravada para esta operação."}
+        </p>
+      </div>
     );
   }
 
-  const isAnyRefining =
-    operation.status === "queued" || operation.status === "running";
-
-  function scrollToSection(key: string) {
-    setActiveSection(key);
-    document.getElementById(`bp-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  const blueprintCtx: BlueprintLayoutContext = {
+    ...ctx,
+    makeRefineHandler,
+    isAnyRefining,
+    refiningSection,
+    spinGuide,
+    filledSections,
+  };
 
   return (
     <div className="hera-page print:max-w-none">
       {/* Header */}
       <div className="hera-cockpit-hero p-6 lg:p-8 flex flex-wrap items-start justify-between gap-4 print:hidden">
         <div>
-          <p className="hera-label mb-2">Entregável</p>
-          <h1 className="font-serif text-3xl font-semibold text-foreground">
-            Blueprint Operacional Mestre
+          <p className="hera-label mb-1.5 flex items-center gap-1.5">
+            <span className="inline-block h-1 w-4 rounded-full bg-hera-gold/70" />
+            Entregável
+          </p>
+          <h1 className="font-sans text-3xl font-bold text-foreground tracking-tight">
+            Blueprint Operacional
           </h1>
-          <p className="text-base text-muted-foreground mt-2">
+          <p className="text-sm text-muted-foreground mt-1.5">
             <span className="hera-mono font-semibold text-foreground">
               {filledSections.length}/{SECTION_DEFS.length}
             </span>{" "}
@@ -187,7 +197,7 @@ export function BlueprintView() {
             {isAnyRefining ? (
               <span className="text-hera-cyan">Refinamento em processamento...</span>
             ) : (
-              <span className="text-primary">Use Ajustar para refinar qualquer seção com IA</span>
+              <span className="text-primary/80">Selecione uma seção para ver e ajustar com IA</span>
             )}
           </p>
         </div>
@@ -202,7 +212,6 @@ export function BlueprintView() {
             Exportar
             <ChevronDown className="h-3.5 w-3.5" />
           </button>
-
           {exportOpen && (
             <div className="absolute right-0 top-full mt-1 w-48 hera-card border border-border rounded-lg shadow-lg z-10 py-1">
               <button
@@ -237,66 +246,45 @@ export function BlueprintView() {
         <hr className="mt-4 border-gray-300" />
       </div>
 
-      <div className="grid lg:grid-cols-[240px_1fr] gap-8 items-start print:block">
-        {/* Navegação lateral — desktop */}
-        <nav className="hidden lg:block sticky top-6 space-y-1 print:hidden">
+      <div className="grid lg:grid-cols-[220px_1fr] gap-6 items-start print:block">
+        {/* Section nav */}
+        <nav className="hidden lg:flex flex-col sticky top-6 print:hidden">
           <p className="hera-label px-3 mb-3">Seções</p>
-          {filledSections.map((def, i) => (
-            <button
-              key={def.key}
-              type="button"
-              onClick={() => scrollToSection(def.key)}
-              className={[
-                "hera-section-nav-item",
-                activeSection === def.key
-                  ? "hera-section-nav-item--active"
-                  : "hera-section-nav-item--idle",
-              ].join(" ")}
-            >
-              <span className="hera-mono text-xs opacity-60 mr-1">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              {def.label}
-            </button>
-          ))}
-        </nav>
-
-        {/* Conteúdo — largura total */}
-        <div className="space-y-5 min-w-0">
           {SECTION_DEFS.map((def, i) => {
-            const data = sections[def.key] as Json | undefined;
-            if (data == null) return null;
-
-            const isFirst = i === 0;
-            const isSectionRefining = refiningSection === def.key && isAnyRefining;
-
+            const filled = sections[def.key] != null;
             return (
-              <div key={def.key} id={`bp-${def.key}`} className="scroll-mt-6">
-                <SectionShell
-                  num={i + 1}
-                  label={def.label}
-                  defaultOpen={isFirst}
-                  forceOpen={isPrinting}
-                  onRefine={makeRefineHandler(def.key)}
-                  isRefining={isSectionRefining}
-                >
-                  {def.render(data, operationId, def.key === "comercial" ? spinGuide : undefined)}
-                </SectionShell>
-              </div>
+              <NavLink
+                key={def.key}
+                to={`/operations/${operationId}/blueprint/${def.key}`}
+                className={({ isActive }) =>
+                  [
+                    "hera-section-nav-item flex items-center gap-2 group",
+                    !filled && "opacity-35 pointer-events-none",
+                    filled && isActive
+                      ? "hera-section-nav-item--active"
+                      : "hera-section-nav-item--idle",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")
+                }
+              >
+                <span className="hera-mono text-[11px] w-5 shrink-0 opacity-50">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="truncate text-sm">{def.label}</span>
+                {filled && (
+                  <span className="ml-auto h-1 w-1 rounded-full bg-hera-done/60 shrink-0 opacity-0 group-[.hera-section-nav-item--active]:opacity-100" />
+                )}
+              </NavLink>
             );
           })}
+        </nav>
+
+        {/* Active section outlet */}
+        <div className="min-w-0">
+          <Outlet context={blueprintCtx} />
         </div>
       </div>
-    </div>
-  );
-}
-
-function EmptyDeliverable({ title, message }: { title: string; message: string }) {
-  return (
-    <div className="hera-card p-12 text-center space-y-3 max-w-lg mx-auto">
-      <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto" />
-      <h3 className="font-serif text-lg font-semibold text-foreground">{title}</h3>
-      <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }

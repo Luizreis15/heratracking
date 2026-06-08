@@ -8,7 +8,8 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { NewOperationPage } from "@/pages/NewOperationPage";
 import { OperationLayout } from "@/pages/operation/OperationLayout";
 import { BoardView } from "@/pages/operation/BoardView";
-import { BlueprintView } from "@/pages/operation/BlueprintView";
+import { BlueprintLayout } from "@/pages/operation/BlueprintView";
+import { BlueprintSectionPage } from "@/pages/operation/BlueprintSectionPage";
 import { ConcorrenciaView } from "@/pages/operation/ConcorrenciaView";
 import { HeraDgView } from "@/pages/operation/HeraDgView";
 import { OperacaoView } from "@/pages/operation/OperacaoView";
@@ -32,7 +33,9 @@ export default function App() {
           <Route path="/operations/new" element={<NewOperationPage />} />
           <Route path="/operations/:id" element={<OperationLayout />}>
             <Route index element={<BoardView />} />
-            <Route path="blueprint" element={<ErrorBoundary><BlueprintView /></ErrorBoundary>} />
+            <Route path="blueprint" element={<ErrorBoundary><BlueprintLayout /></ErrorBoundary>}>
+              <Route path=":sectionKey" element={<BlueprintSectionPage />} />
+            </Route>
             <Route path="concorrencia" element={<ErrorBoundary><ConcorrenciaView /></ErrorBoundary>} />
             <Route path="analise" element={<ErrorBoundary><HeraDgView /></ErrorBoundary>} />
             <Route path="hera-dg" element={<Navigate to="analise" replace />} />
