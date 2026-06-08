@@ -13,25 +13,12 @@ import {
   appendPhaseLog,
   claimOperation,
   initPhaseEvents,
+  loadMethodProfile,
   markOperationDone,
   markOperationError,
 } from "./persist.js";
 import { extractAssistantText, toolLogLine } from "./parser.js";
-import type { MethodProfile, Operation } from "./types.js";
-
-async function loadMethodProfile(
-  supabase: SupabaseClient,
-  workspaceId: string,
-): Promise<MethodProfile | null> {
-  const { data } = await supabase
-    .from("method_profiles")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data as MethodProfile | null;
-}
+import type { Operation } from "./types.js";
 
 const CLAUDE_PHASES = PHASE_ORDER.filter((p) => p !== "pesquisa");
 

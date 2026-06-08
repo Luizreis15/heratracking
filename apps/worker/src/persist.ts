@@ -6,7 +6,7 @@ import {
   type PhaseName,
 } from "./constants.js";
 import type { IntelEventInput } from "./intel-types.js";
-import type { BlueprintSections, CompetitorInput, Operation } from "./types.js";
+import type { BlueprintSections, CompetitorInput, MethodProfile, Operation } from "./types.js";
 import { normalizeOperation } from "./types.js";
 import type { ParsedPhase } from "./parser.js";
 
@@ -99,30 +99,33 @@ export async function setPhaseStatus(
   }
 }
 
+/** Single-round-trip log append via server-side Postgres function (no N+1). */
 export async function appendPhaseLog(
   supabase: SupabaseClient,
   operationId: string,
   phase: PhaseName,
   line: string,
 ): Promise<void> {
-  const { data, error: fetchErr } = await supabase
-    .from("phase_events")
-    .select("log")
-    .eq("operation_id", operationId)
-    .eq("phase", phase)
-    .single();
+  const { error } = await supabase.rpc("fn_append_phase_log", {
+    p_operation_id: operationId,
+    p_phase: phase,
+    p_line: line,
+  });
+  if (error) console.warn(`[worker] appendPhaseLog: ${error.message}`);
+}
 
-  if (fetchErr) return;
-
-  const prev = (data?.log as string | null) ?? "";
-  const next = prev ? `${prev}\n${line}` : line;
-  const trimmed = next.length > 4000 ? next.slice(-4000) : next;
-
-  await supabase
-    .from("phase_events")
-    .update({ log: trimmed })
-    .eq("operation_id", operationId)
-    .eq("phase", phase);
+export async function loadMethodProfile(
+  supabase: SupabaseClient,
+  workspaceId: string,
+): Promise<MethodProfile | null> {
+  const { data } = await supabase
+    .from("method_profiles")
+    .select("*")
+    .eq("workspace_id", workspaceId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data as MethodProfile | null;
 }
 
 async function getOrCreateBlueprint(
