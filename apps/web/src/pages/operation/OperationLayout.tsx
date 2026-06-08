@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { useOperationMetrics } from "@/hooks/useOperationMetrics";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +11,46 @@ import type { OperationContext } from "./operation-context";
 export function OperationLayout() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
+  // ── Supabase Realtime ────────────────────────────────────────────────────────
+  // Single channel per operation — subscribes to all 4 relevant tables.
+  // When a row changes the worker wrote, the query cache is immediately
+  // invalidated so the UI reflects the new state within ~100 ms instead of
+  // waiting for the next polling interval (now kept at 30 s as a fallback only).
+  useEffect(() => {
+    if (!id) return;
+
+    const channel = supabase
+      .channel(`op-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "operations", filter: `id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["operation", id] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "phase_events", filter: `operation_id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["phase_events", id] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "blueprints", filter: `operation_id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["blueprint", id] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "competitors", filter: `operation_id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["competitors", id] }),
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
+
+  // ── Queries (30 s fallback poll while job is active) ─────────────────────────
   const { data: operation, isLoading: opLoading } = useQuery<Operation>({
     queryKey: ["operation", id],
     queryFn: async () => {
@@ -25,7 +65,7 @@ export function OperationLayout() {
     enabled: !!id,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      return status === "queued" || status === "running" ? 5000 : false;
+      return status === "queued" || status === "running" ? 30_000 : false;
     },
   });
 
@@ -42,8 +82,8 @@ export function OperationLayout() {
     },
     enabled: !!id,
     refetchInterval: () => {
-      if (!operation) return false;
-      return operation.status === "queued" || operation.status === "running" ? 3000 : false;
+      const s = operation?.status;
+      return s === "queued" || s === "running" ? 30_000 : false;
     },
   });
 
@@ -63,7 +103,7 @@ export function OperationLayout() {
     enabled: !!id,
     refetchInterval: () => {
       const s = operation?.status;
-      return s === "queued" || s === "running" ? 8000 : false;
+      return s === "queued" || s === "running" ? 30_000 : false;
     },
   });
 
@@ -83,7 +123,7 @@ export function OperationLayout() {
     enabled: !!id,
     refetchInterval: () => {
       const s = operation?.status;
-      return s === "queued" || s === "running" ? 4000 : false;
+      return s === "queued" || s === "running" ? 30_000 : false;
     },
   });
 
