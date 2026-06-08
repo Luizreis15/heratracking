@@ -17,10 +17,13 @@ const config: Config = {
       colors: {
         hera: {
           navy: "hsl(var(--hera-navy))",
+          "navy-deep": "hsl(var(--hera-navy-deep))",
           surface: "hsl(var(--hera-surface))",
           card: "hsl(var(--hera-card))",
           cream: "hsl(var(--hera-cream))",
           gold: "hsl(var(--hera-gold))",
+          cyan: "hsl(var(--hera-cyan))",
+          electric: "hsl(var(--hera-electric))",
           done: "hsl(var(--hera-done))",
           running: "hsl(var(--hera-running))",
           alert: "hsl(var(--hera-alert))",

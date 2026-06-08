@@ -5,7 +5,7 @@
 @layer base {
   :root {
     /* Hera Tracking — navy + ouro */
-    --background: 217 45% 16%;
+    --background: 220 50% 10%;
     --foreground: 36 33% 93%;
     --card: 216 43% 25%;
     --card-foreground: 36 33% 93%;
@@ -27,10 +27,13 @@
     --radius: 0.625rem;
 
     --hera-navy: 217 45% 16%;
+    --hera-navy-deep: 220 50% 10%;
     --hera-surface: 216 44% 20%;
     --hera-card: 216 43% 25%;
     --hera-cream: 36 33% 93%;
     --hera-gold: 43 54% 54%;
+    --hera-cyan: 195 85% 62%;
+    --hera-electric: 224 100% 70%;
     --hera-done: 162 61% 64%;
     --hera-running: 210 49% 66%;
     --hera-alert: 37 71% 59%;
@@ -42,77 +45,236 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply text-foreground font-sans antialiased;
+    background-color: hsl(var(--hera-navy-deep));
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% 0%, hsl(var(--hera-gold) / 0.04) 0%, transparent 60%),
+      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    background-attachment: fixed;
   }
   h1, h2, h3, .font-display {
     @apply font-serif;
   }
 }
 
+/* ── Keyframes ──────────────────────────────────────── */
+
+@keyframes border-glow {
+  0%, 100% { box-shadow: 0 0 8px hsl(var(--hera-cyan) / 0.2); }
+  50%       { box-shadow: 0 0 20px hsl(var(--hera-cyan) / 0.5); }
+}
+
+@keyframes pulse-badge {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes typewriter-cursor {
+  0%, 100% { border-right-color: currentColor; }
+  50%       { border-right-color: transparent; }
+}
+
+@keyframes indeterminate-bar {
+  0%   { left: -35%; right: 100%; }
+  60%  { left: 100%; right: -90%; }
+  100% { left: 100%; right: -90%; }
+}
+
+/* ── Components ─────────────────────────────────────── */
+
 @layer components {
+  /* Sidebar */
   .hera-sidebar {
-    @apply bg-[hsl(var(--hera-navy))] border-r border-border;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--hera-navy-deep)) 0%,
+      hsl(var(--hera-navy)) 100%
+    );
+    border-right: 1px solid hsl(var(--border));
   }
+
   .hera-surface {
     @apply bg-[hsl(var(--hera-surface))];
   }
+
+  /* Glass card */
   .hera-card {
-    @apply bg-[hsl(var(--hera-card))] border border-border rounded-lg;
+    background: hsl(var(--hera-card) / 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: var(--radius);
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition: transform 150ms ease, box-shadow 150ms ease;
   }
+  .hera-card:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 20px rgba(191, 155, 77, 0.12),
+      0 4px 24px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* Labels */
   .hera-label {
     @apply text-[11px] font-semibold uppercase tracking-wider text-muted-foreground;
   }
+
+  /* Primary button */
   .hera-btn-primary {
     @apply inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold
-           bg-primary text-primary-foreground hover:bg-primary/90 transition-colors
+           text-primary-foreground
            disabled:opacity-50 disabled:pointer-events-none;
+    background: linear-gradient(135deg, hsl(43 60% 60%), hsl(43 54% 48%));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
   }
+  .hera-btn-primary:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(191, 155, 77, 0.35), 0 1px 2px rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px);
+  }
+
+  /* Ghost button */
   .hera-btn-ghost {
     @apply inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm
            text-muted-foreground hover:text-foreground hover:bg-accent transition-colors;
   }
+
+  /* Nav items */
   .hera-nav-item {
     @apply flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors;
+    position: relative;
   }
   .hera-nav-item-active {
-    @apply bg-primary/15 text-primary border-l-2 border-primary pl-[10px];
+    background: linear-gradient(90deg, hsl(var(--primary) / 0.2), transparent);
+    color: hsl(var(--primary));
+  }
+  .hera-nav-item-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: hsl(var(--hera-cyan));
+    box-shadow: 0 0 6px hsl(var(--hera-cyan) / 0.6);
+    border-radius: 0 1px 1px 0;
   }
   .hera-nav-item-idle {
     @apply text-muted-foreground hover:text-foreground hover:bg-accent/60;
   }
+
+  /* Nav separator */
+  .hera-nav-separator {
+    height: 1px;
+    margin: 0.5rem 0.75rem;
+    background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
+  }
+
+  /* Monospace / tabular nums for KPIs, costs, IDs */
+  .hera-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Status badge states */
+  .badge-running {
+    color: hsl(var(--hera-cyan));
+    box-shadow: 0 0 8px rgba(64, 211, 232, 0.35);
+    animation: pulse-badge 1.4s ease-in-out infinite;
+  }
+  .badge-done {
+    color: hsl(var(--hera-gold) / 0.8);
+    box-shadow: 0 0 6px rgba(191, 155, 77, 0.3);
+  }
+  .badge-error {
+    color: hsl(var(--destructive));
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
+  }
+
+  /* Phase column — active/running state */
+  .phase-running {
+    animation: border-glow 2s ease-in-out infinite;
+    border-color: hsl(var(--hera-cyan) / 0.6) !important;
+  }
+
+  /* Indeterminate processing bar */
+  .hera-progress-bar {
+    position: relative;
+    height: 2px;
+    overflow: hidden;
+    background: rgba(64, 211, 232, 0.15);
+    border-radius: 9999px;
+  }
+  .hera-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--hera-cyan)) 50%,
+      transparent 100%
+    );
+    animation: indeterminate-bar 1.8s ease-in-out infinite;
+    border-radius: 9999px;
+    width: 35%;
+  }
+
+  /* Typewriter cursor */
+  .hera-typewriter-cursor {
+    border-right: 2px solid currentColor;
+    animation: typewriter-cursor 0.7s step-end infinite;
+    padding-right: 1px;
+  }
 }
 
+/* ── Print ──────────────────────────────────────────── */
+
 @media print {
-  /* Hide all chrome except the blueprint content */
   aside,
   nav,
   .print\:hidden {
     display: none !important;
   }
 
-  /* Reset layout — full width single column */
   body {
     background: white !important;
+    background-image: none !important;
     color: black !important;
     font-size: 11pt;
   }
 
-  /* The flex wrapper in AppShell */
   .min-h-screen.flex {
     display: block !important;
   }
 
-  /* Blueprint cards: flat white with a top rule */
   .hera-card {
     background: white !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border: none !important;
     border-top: 1pt solid #ccc !important;
     border-radius: 0 !important;
+    box-shadow: none !important;
     page-break-inside: avoid;
     break-inside: avoid;
   }
 
-  /* Section text readable on white */
+  .hera-card:hover {
+    transform: none !important;
+  }
+
   .text-foreground,
   .text-muted-foreground,
   .text-primary,
@@ -120,14 +282,12 @@
     color: black !important;
   }
 
-  /* Page breaks between sections */
   .space-y-3 > div {
     page-break-inside: avoid;
     break-inside: avoid;
     margin-bottom: 12pt;
   }
 
-  /* Hide interactive elements */
   button,
   textarea,
   .hera-btn-primary,
@@ -135,7 +295,6 @@
     display: none !important;
   }
 
-  /* Show chevron as plain text indicator instead */
   svg.lucide-chevron-down {
     display: none !important;
   }
