@@ -37,6 +37,11 @@
     --hera-done: 162 61% 64%;
     --hera-running: 210 49% 66%;
     --hera-alert: 37 71% 59%;
+
+    /* Glow + glass tokens (F1) */
+    --hera-glow-gold: 191 155 77 / 0.25;
+    --hera-glow-cyan: 64 211 232 / 0.2;
+    --hera-glass-border: 255 255 255 / 0.07;
   }
 }
 
@@ -44,17 +49,43 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply text-foreground font-sans antialiased;
+    position: relative;
+    min-height: 100vh;
     background-color: hsl(var(--hera-navy-deep));
+  }
+
+  /* Grid sutil + radial gold — camada fixa atrás do conteúdo */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% 0%, hsl(var(--hera-gold) / 0.04) 0%, transparent 60%),
-      linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      radial-gradient(
+        ellipse 80% 50% at 50% 0%,
+        hsl(var(--hera-gold) / 0.04) 0%,
+        transparent 60%
+      ),
+      linear-gradient(rgb(var(--hera-glass-border)) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--hera-glass-border)) 1px, transparent 1px);
     background-size: 100% 100%, 40px 40px, 40px 40px;
     background-attachment: fixed;
   }
-  h1, h2, h3, .font-display {
+
+  #root {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
     @apply font-serif;
   }
 }
@@ -62,29 +93,61 @@
 /* ── Keyframes ──────────────────────────────────────── */
 
 @keyframes border-glow {
-  0%, 100% { box-shadow: 0 0 8px hsl(var(--hera-cyan) / 0.2); }
-  50%       { box-shadow: 0 0 20px hsl(var(--hera-cyan) / 0.5); }
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgb(var(--hera-glow-cyan));
+  }
+  50% {
+    box-shadow: 0 0 20px rgb(var(--hera-glow-cyan) / 0.5);
+  }
 }
 
 @keyframes pulse-badge {
-  0%, 100% { opacity: 0.6; }
-  50%       { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @keyframes reveal-up {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+/* count-up: animado via JS (requestAnimationFrame) — Fase 3 */
+
 @keyframes typewriter-cursor {
-  0%, 100% { border-right-color: currentColor; }
-  50%       { border-right-color: transparent; }
+  0%,
+  100% {
+    border-right-color: currentColor;
+  }
+  50% {
+    border-right-color: transparent;
+  }
 }
 
 @keyframes indeterminate-bar {
-  0%   { left: -35%; right: 100%; }
-  60%  { left: 100%; right: -90%; }
-  100% { left: 100%; right: -90%; }
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+  100% {
+    left: 100%;
+    right: -90%;
+  }
 }
 
 /* ── Components ─────────────────────────────────────── */
@@ -109,13 +172,16 @@
     background: hsl(var(--hera-card) / 0.75);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid rgb(var(--hera-glass-border));
     border-radius: var(--radius);
     box-shadow:
       0 4px 24px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    transition: transform 150ms ease, box-shadow 150ms ease;
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease;
   }
+
   .hera-card:hover {
     transform: translateY(-1px);
     box-shadow:
@@ -136,10 +202,16 @@
            disabled:opacity-50 disabled:pointer-events-none;
     background: linear-gradient(135deg, hsl(43 60% 60%), hsl(43 54% 48%));
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-    transition: transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease;
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease,
+      opacity 150ms ease;
   }
+
   .hera-btn-primary:hover:not(:disabled) {
-    box-shadow: 0 0 20px rgba(191, 155, 77, 0.35), 0 1px 2px rgba(0, 0, 0, 0.4);
+    box-shadow:
+      0 0 20px rgba(191, 155, 77, 0.35),
+      0 1px 2px rgba(0, 0, 0, 0.4);
     transform: translateY(-1px);
   }
 
@@ -154,21 +226,24 @@
     @apply flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors;
     position: relative;
   }
+
   .hera-nav-item-active {
     background: linear-gradient(90deg, hsl(var(--primary) / 0.2), transparent);
     color: hsl(var(--primary));
   }
+
   .hera-nav-item-active::before {
-    content: '';
+    content: "";
     position: absolute;
     left: 0;
     top: 4px;
     bottom: 4px;
     width: 2px;
     background: hsl(var(--hera-cyan));
-    box-shadow: 0 0 6px hsl(var(--hera-cyan) / 0.6);
+    box-shadow: 0 0 6px rgb(var(--hera-glow-cyan));
     border-radius: 0 1px 1px 0;
   }
+
   .hera-nav-item-idle {
     @apply text-muted-foreground hover:text-foreground hover:bg-accent/60;
   }
@@ -180,7 +255,7 @@
     background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
   }
 
-  /* Monospace / tabular nums for KPIs, costs, IDs */
+  /* Monospace / tabular nums — KPIs, custos, IDs, datas, contadores */
   .hera-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-variant-numeric: tabular-nums;
@@ -192,10 +267,12 @@
     box-shadow: 0 0 8px rgba(64, 211, 232, 0.35);
     animation: pulse-badge 1.4s ease-in-out infinite;
   }
+
   .badge-done {
     color: hsl(var(--hera-gold) / 0.8);
     box-shadow: 0 0 6px rgba(191, 155, 77, 0.3);
   }
+
   .badge-error {
     color: hsl(var(--destructive));
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.35);
@@ -207,16 +284,17 @@
     border-color: hsl(var(--hera-cyan) / 0.6) !important;
   }
 
-  /* Indeterminate processing bar */
+  /* Indeterminate processing bar (Fase 3) */
   .hera-progress-bar {
     position: relative;
     height: 2px;
     overflow: hidden;
-    background: rgba(64, 211, 232, 0.15);
+    background: rgb(var(--hera-glow-cyan));
     border-radius: 9999px;
   }
+
   .hera-progress-bar::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     bottom: 0;
@@ -231,11 +309,16 @@
     width: 35%;
   }
 
-  /* Typewriter cursor */
+  /* Typewriter cursor (Fase 3) */
   .hera-typewriter-cursor {
     border-right: 2px solid currentColor;
     animation: typewriter-cursor 0.7s step-end infinite;
     padding-right: 1px;
+  }
+
+  /* Reveal escalonado (Fase 3) */
+  .hera-reveal-up {
+    animation: reveal-up 0.45s ease-out both;
   }
 }
 
@@ -250,9 +333,12 @@
 
   body {
     background: white !important;
-    background-image: none !important;
     color: black !important;
     font-size: 11pt;
+  }
+
+  body::before {
+    display: none !important;
   }
 
   .min-h-screen.flex {
@@ -278,7 +364,12 @@
   .text-foreground,
   .text-muted-foreground,
   .text-primary,
-  h1, h2, h3, p, span, li {
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  li {
     color: black !important;
   }
 
