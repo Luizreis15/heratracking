@@ -35,21 +35,37 @@ export function useMethodProfile(workspaceId: string | undefined) {
       const extensoes = mergeOperadorIntoExtensoes(query.data?.extensoes ?? {}, perfil);
 
       if (query.data?.id) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("method_profiles")
           .update({ extensoes, updated_at: new Date().toISOString() })
-          .eq("id", query.data.id);
+          .eq("id", query.data.id)
+          .select("id")
+          .maybeSingle();
         if (error) throw error;
+        if (!data) {
+          throw new Error(
+            "Sem permissão para editar o perfil da agência. Confirme que você é owner ou membro do workspace.",
+          );
+        }
         return;
       }
 
-      const { error } = await supabase.from("method_profiles").insert({
-        workspace_id: workspaceId,
-        nicho: "Clínicas implantodontistas (clientes B2B)",
-        posicionamento: perfil.posicionamento ?? "Hera DG",
-        extensoes,
-      });
+      const { data: inserted, error } = await supabase
+        .from("method_profiles")
+        .insert({
+          workspace_id: workspaceId,
+          nicho: "Clínicas implantodontistas (clientes B2B)",
+          posicionamento: perfil.posicionamento ?? "Hera DG",
+          extensoes,
+        })
+        .select("id")
+        .maybeSingle();
       if (error) throw error;
+      if (!inserted) {
+        throw new Error(
+          "Não foi possível criar o perfil Hera DG — verifique permissões do workspace.",
+        );
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["method_profile", workspaceId] });

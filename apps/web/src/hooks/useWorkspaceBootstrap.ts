@@ -54,6 +54,29 @@ export function useWorkspaceBootstrap(
 
         const verifiedUid = userData.user.id;
 
+        // Repair: owner do workspace sem row em workspace_members (RLS quebrava method_profiles)
+        const { data: ownedWs } = await supabase
+          .from("workspaces")
+          .select("id")
+          .eq("owner_id", verifiedUid);
+
+        for (const ws of ownedWs ?? []) {
+          const { data: memberRow } = await supabase
+            .from("workspace_members")
+            .select("workspace_id")
+            .eq("workspace_id", ws.id)
+            .eq("user_id", verifiedUid)
+            .maybeSingle();
+
+          if (!memberRow) {
+            await supabase.from("workspace_members").insert({
+              workspace_id: ws.id,
+              user_id: verifiedUid,
+              role: "owner",
+            });
+          }
+        }
+
         const { data: memberships, error: memberErr } = await supabase
           .from("workspace_members")
           .select("workspace_id")
@@ -110,12 +133,13 @@ export function useWorkspaceBootstrap(
           .insert({ workspace_id: newWs.id, user_id: verifiedUid, role: "owner" });
         if (memberInsertErr) throw memberInsertErr;
 
-        await supabase.from("method_profiles").insert({
+        const { error: profileErr } = await supabase.from("method_profiles").insert({
           workspace_id: newWs.id,
           nicho: DEFAULT_METHOD_PROFILE.nicho,
           posicionamento: DEFAULT_METHOD_PROFILE.posicionamento,
           extensoes: DEFAULT_METHOD_PROFILE.extensoes,
         });
+        if (profileErr) throw new Error(`Erro ao criar perfil Hera DG: ${profileErr.message}`);
 
         if (!cancelled) setWorkspace(newWs);
       } catch (err) {

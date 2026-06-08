@@ -19,7 +19,9 @@ export function HeraDgView() {
     operation.status === "running" ||
     operation.job_mode === "comparativo";
   const { workspace } = useAuth();
-  const { operador, saveOperador, isSaving, isLoading } = useMethodProfile(workspace?.id);
+  const { operador, saveOperador, isSaving, isLoading, saveError } = useMethodProfile(
+    workspace?.id,
+  );
 
   const [form, setForm] = useState<OperadorProfile>(operador);
   const [saved, setSaved] = useState(false);
@@ -43,9 +45,17 @@ export function HeraDgView() {
   }
 
   async function handleSave() {
-    await saveOperador(form);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      await saveOperador(form);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Erro ao salvar perfil da agência.";
+      alert(msg);
+    }
   }
 
   function importFromBriefing() {
@@ -94,6 +104,18 @@ export function HeraDgView() {
           </button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="hera-card border-destructive/40 px-4 py-3 text-sm text-destructive max-w-5xl">
+          {saveError instanceof Error ? saveError.message : "Erro ao salvar perfil."}
+        </div>
+      )}
+
+      {!workspace && (
+        <div className="hera-card border-hera-running/30 px-4 py-3 text-sm text-muted-foreground max-w-5xl">
+          Workspace ainda não carregou — aguarde o bootstrap ou faça login novamente.
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6 max-w-5xl">
         <ProfileForm form={form} onChange={update} />
