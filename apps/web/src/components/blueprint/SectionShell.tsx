@@ -42,16 +42,16 @@ export function SectionShell({
   return (
     <div className="hera-card overflow-hidden">
       {/* ── Header ── */}
-      <div className="flex items-center gap-2 px-4 py-3.5">
+      <div className="flex items-center gap-2 px-5 py-4">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           className="flex-1 flex items-center gap-3 text-left min-w-0"
         >
-          <span className="text-xs text-primary font-mono w-5 shrink-0">
+          <span className="text-sm text-primary font-mono w-6 shrink-0">
             {String(num).padStart(2, "0")}
           </span>
-          <span className="flex-1 text-sm font-semibold text-foreground truncate">{label}</span>
+          <span className="flex-1 text-base font-semibold text-foreground truncate">{label}</span>
           <ChevronDown
             className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ${open ? "rotate-180" : ""}`}
           />
@@ -117,7 +117,7 @@ export function SectionShell({
 
       {/* ── Content ── */}
       {(open || forceOpen) && (
-        <div className="px-5 pb-6 pt-2 border-t border-border/40">
+        <div className="px-6 pb-8 pt-4 border-t border-border/40 hera-prose">
           {children}
         </div>
       )}

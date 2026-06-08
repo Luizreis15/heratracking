@@ -72,6 +72,7 @@ export function BlueprintView() {
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("mercado_icp");
   const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -105,6 +106,8 @@ export function BlueprintView() {
     });
   }, []);
 
+  const spinGuide = blueprint?.spin_guide ?? null;
+
   const handleMdExport = useCallback(() => {
     setExportOpen(false);
     const md = blueprintToMarkdown(
@@ -114,7 +117,7 @@ export function BlueprintView() {
       spinGuide,
     );
     downloadMarkdown(md, operation.nicho);
-  }, [sections, operation.nicho, operation.posicionamento]);
+  }, [sections, operation.nicho, operation.posicionamento, spinGuide]);
 
   const makeRefineHandler = useCallback(
     (sectionKey: string) => async (instruction: string) => {
@@ -138,8 +141,13 @@ export function BlueprintView() {
     [operationId, queryClient],
   );
 
-  const spinGuide = blueprint?.spin_guide ?? null;
   const filledSections = SECTION_DEFS.filter((s) => sections[s.key] != null);
+
+  useEffect(() => {
+    if (filledSections.length > 0 && !filledSections.some((s) => s.key === activeSection)) {
+      setActiveSection(filledSections[0].key);
+    }
+  }, [filledSections, activeSection]);
 
   if (filledSections.length === 0) {
     return (
@@ -157,28 +165,33 @@ export function BlueprintView() {
   const isAnyRefining =
     operation.status === "queued" || operation.status === "running";
 
+  function scrollToSection(key: string) {
+    setActiveSection(key);
+    document.getElementById(`bp-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
-    <div className="space-y-6 max-w-4xl print:max-w-none">
+    <div className="hera-page print:max-w-none">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 print:hidden">
+      <div className="hera-cockpit-hero p-6 lg:p-8 flex flex-wrap items-start justify-between gap-4 print:hidden">
         <div>
-          <p className="hera-label mb-1">Entregável</p>
-          <h1 className="font-serif text-2xl font-semibold text-foreground">
+          <p className="hera-label mb-2">Entregável</p>
+          <h1 className="font-serif text-3xl font-semibold text-foreground">
             Blueprint Operacional Mestre
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {filledSections.length} de {SECTION_DEFS.length} seções •{" "}
+          <p className="text-base text-muted-foreground mt-2">
+            <span className="hera-mono font-semibold text-foreground">
+              {filledSections.length}/{SECTION_DEFS.length}
+            </span>{" "}
+            seções •{" "}
             {isAnyRefining ? (
-              <span className="text-hera-running">Refinamento em processamento...</span>
+              <span className="text-hera-cyan">Refinamento em processamento...</span>
             ) : (
-              <span className="text-primary">
-                Clique em Ajustar em qualquer seção para refinar com IA
-              </span>
+              <span className="text-primary">Use Ajustar para refinar qualquer seção com IA</span>
             )}
           </p>
         </div>
 
-        {/* Export dropdown */}
         <div className="relative shrink-0" ref={exportRef}>
           <button
             type="button"
@@ -224,29 +237,55 @@ export function BlueprintView() {
         <hr className="mt-4 border-gray-300" />
       </div>
 
-      {/* Seções */}
-      <div className="space-y-3">
-        {SECTION_DEFS.map((def, i) => {
-          const data = sections[def.key] as Json | undefined;
-          if (data == null) return null;
-
-          const isFirst = i === 0;
-          const isSectionRefining = refiningSection === def.key && isAnyRefining;
-
-          return (
-            <SectionShell
+      <div className="grid lg:grid-cols-[240px_1fr] gap-8 items-start print:block">
+        {/* Navegação lateral — desktop */}
+        <nav className="hidden lg:block sticky top-6 space-y-1 print:hidden">
+          <p className="hera-label px-3 mb-3">Seções</p>
+          {filledSections.map((def, i) => (
+            <button
               key={def.key}
-              num={i + 1}
-              label={def.label}
-              defaultOpen={isFirst}
-              forceOpen={isPrinting}
-              onRefine={makeRefineHandler(def.key)}
-              isRefining={isSectionRefining}
+              type="button"
+              onClick={() => scrollToSection(def.key)}
+              className={[
+                "hera-section-nav-item",
+                activeSection === def.key
+                  ? "hera-section-nav-item--active"
+                  : "hera-section-nav-item--idle",
+              ].join(" ")}
             >
-              {def.render(data, operationId, def.key === "comercial" ? spinGuide : undefined)}
-            </SectionShell>
-          );
-        })}
+              <span className="hera-mono text-xs opacity-60 mr-1">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              {def.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Conteúdo — largura total */}
+        <div className="space-y-5 min-w-0">
+          {SECTION_DEFS.map((def, i) => {
+            const data = sections[def.key] as Json | undefined;
+            if (data == null) return null;
+
+            const isFirst = i === 0;
+            const isSectionRefining = refiningSection === def.key && isAnyRefining;
+
+            return (
+              <div key={def.key} id={`bp-${def.key}`} className="scroll-mt-6">
+                <SectionShell
+                  num={i + 1}
+                  label={def.label}
+                  defaultOpen={isFirst}
+                  forceOpen={isPrinting}
+                  onRefine={makeRefineHandler(def.key)}
+                  isRefining={isSectionRefining}
+                >
+                  {def.render(data, operationId, def.key === "comercial" ? spinGuide : undefined)}
+                </SectionShell>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -107,7 +107,7 @@ export function AppShell() {
                 ← Todas as operações
               </NavItem>
               <p className="hera-label px-3 mb-2">Esta operação</p>
-              <p className="px-3 text-xs text-foreground font-medium truncate mb-3">
+              <p className="px-3 text-sm text-foreground font-medium truncate mb-3 leading-snug">
                 {operation?.nicho ?? "Carregando..."}
               </p>
               <NavItem to={`/operations/${operationId}`} icon={Kanban} end>

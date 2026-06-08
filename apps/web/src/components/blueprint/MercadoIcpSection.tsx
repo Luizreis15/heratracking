@@ -47,7 +47,7 @@ export function MercadoIcpSection({ data }: { data: Json }) {
       {icp.quem_e && (
         <div className="hera-card p-4 border-l-[3px] border-l-primary">
           <p className="hera-label mb-2">Quem é o ICP</p>
-          <p className="text-sm text-foreground leading-relaxed">{asString(icp.quem_e)}</p>
+          <p className="text-base text-foreground leading-relaxed">{asString(icp.quem_e)}</p>
         </div>
       )}
 
@@ -102,7 +102,7 @@ export function MercadoIcpSection({ data }: { data: Json }) {
                 >
                   {i + 1}
                 </span>
-                <p className="text-sm text-foreground leading-relaxed">{dor}</p>
+                <p className="text-base text-foreground leading-relaxed">{dor}</p>
               </div>
             ))}
           </div>
