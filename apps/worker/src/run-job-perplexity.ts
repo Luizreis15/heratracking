@@ -4,6 +4,7 @@ import type { Env } from "./env.js";
 import {
   claimOperation,
   initPhaseEvents,
+  loadMethodProfile,
   markOperationDone,
   markOperationError,
 } from "./persist.js";
@@ -12,22 +13,7 @@ import {
   runPerplexityPhase,
   sectionKeyForPhase,
 } from "./perplexity/run-phase.js";
-import type { MethodProfile, Operation } from "./types.js";
-
-async function loadMethodProfile(
-  supabase: SupabaseClient,
-  workspaceId: string,
-): Promise<MethodProfile | null> {
-  const { data } = await supabase
-    .from("method_profiles")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return data as MethodProfile | null;
-}
+import type { Operation } from "./types.js";
 
 /** BOM 100% Perplexity — fallback legado (não usado no roteamento padrão). */
 export async function runJobPerplexity(
@@ -35,7 +21,7 @@ export async function runJobPerplexity(
   queued: Operation,
   env: Env,
 ): Promise<void> {
-  const claimed = await claimOperation(supabase, queued.id);
+  const claimed = await claimOperation(supabase, queued.id, queued.job_mode);
   if (!claimed) {
     console.log(`[worker] Operação ${queued.id} já claimada por outro processo`);
     return;

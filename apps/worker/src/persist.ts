@@ -6,22 +6,28 @@ import {
   type PhaseName,
 } from "./constants.js";
 import type { IntelEventInput } from "./intel-types.js";
-import type { BlueprintSections, CompetitorInput, MethodProfile, Operation } from "./types.js";
+import type { BlueprintSections, CompetitorInput, JobMode, MethodProfile, Operation } from "./types.js";
 import { normalizeOperation } from "./types.js";
 import type { ParsedPhase } from "./parser.js";
 
 export async function claimOperation(
   supabase: SupabaseClient,
   operationId: string,
+  jobMode: JobMode = "full",
 ): Promise<Operation | null> {
+  const patch: Record<string, unknown> = {
+    status: "running",
+    error: null,
+    finished_at: null,
+  };
+  // Side jobs (intel, comparativo, etc.) não resetam a fase do blueprint
+  if (jobMode === "full") {
+    patch.current_phase = "pesquisa";
+  }
+
   const { data, error } = await supabase
     .from("operations")
-    .update({
-      status: "running",
-      current_phase: "pesquisa",
-      error: null,
-      finished_at: null,
-    })
+    .update(patch)
     .eq("id", operationId)
     .eq("status", "queued")
     .select("*")
@@ -389,19 +395,32 @@ export async function persistComparisonReport(
   if (error) throw new Error(`Falha ao gravar comparativo: ${error.message}`);
 }
 
+/** Incremento atômico — evita sobrescrever custo com valor stale do claim */
+export async function incrementOperationCost(
+  supabase: SupabaseClient,
+  operationId: string,
+  delta: number,
+): Promise<void> {
+  if (!delta) return;
+  const { error } = await supabase.rpc("fn_increment_operation_cost", {
+    p_operation_id: operationId,
+    p_delta: delta,
+  });
+  if (error) throw new Error(`Falha ao incrementar custo: ${error.message}`);
+}
+
 export async function markOperationDone(
   supabase: SupabaseClient,
   operationId: string,
-  costUsd: number | null,
+  costUsd: number | null | undefined,
   opts?: { keepPhase?: string; intelScan?: boolean },
 ): Promise<void> {
   const patch: Record<string, unknown> = {
     status: "done",
     current_phase: opts?.keepPhase ?? "blueprint",
-    job_mode: "full",
-    cost_usd: costUsd,
     finished_at: new Date().toISOString(),
   };
+  if (costUsd != null) patch.cost_usd = costUsd;
   if (opts?.intelScan) patch.last_intel_scan_at = new Date().toISOString();
 
   const { error } = await supabase

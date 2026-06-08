@@ -4,6 +4,8 @@ import type { Env } from "./env.js";
 import {
   appendPhaseLog,
   claimOperation,
+  incrementOperationCost,
+  loadMethodProfile,
   markOperationDone,
   markOperationError,
   persistIntelEvents,
@@ -22,28 +24,14 @@ import {
   resolvePremiumClientId,
 } from "./meta/resolve-client-id.js";
 import type { IntelEventInput } from "./intel-types.js";
-import type { MethodProfile, Operation } from "./types.js";
-
-async function loadMethodProfile(
-  supabase: SupabaseClient,
-  workspaceId: string,
-): Promise<MethodProfile | null> {
-  const { data } = await supabase
-    .from("method_profiles")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data as MethodProfile | null;
-}
+import type { Operation } from "./types.js";
 
 export async function runIntelScan(
   supabase: SupabaseClient,
   queued: Operation,
   env: Env,
 ): Promise<void> {
-  const claimed = await claimOperation(supabase, queued.id);
+  const claimed = await claimOperation(supabase, queued.id, queued.job_mode);
   if (!claimed) return;
 
   const operationId = claimed.id;
@@ -166,8 +154,8 @@ export async function runIntelScan(
       `✅ Intel: Meta ${metaInserted} + Web ${perplexityInserted} novos (${allEvents.length} detectados)`,
     );
 
-    const prevCost = claimed.cost_usd ?? 0;
-    await markOperationDone(supabase, operationId, prevCost + costUsd, {
+    if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
+    await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
       intelScan: true,
     });

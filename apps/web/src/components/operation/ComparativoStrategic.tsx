@@ -6,6 +6,7 @@ import {
   ameacaLabel,
   parseComparativoContent,
 } from "@/lib/comparativo-report";
+import { toastError, toastWarning } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
 
 type Props = {
@@ -26,7 +27,7 @@ export function ComparativoStrategic({ operationId, competitorCount, busy }: Pro
 
   async function handleGenerate() {
     if (competitorCount === 0) {
-      alert("Mapeie concorrentes antes de gerar o comparativo estratégico.");
+      toastWarning("Mapeie concorrentes antes de gerar o comparativo estratégico.");
       return;
     }
 
@@ -44,7 +45,7 @@ export function ComparativoStrategic({ operationId, competitorCount, busy }: Pro
     setScanning(false);
 
     if (error) {
-      alert(`Erro: ${error.message}`);
+      toastError(`Erro: ${error.message}`);
       return;
     }
 

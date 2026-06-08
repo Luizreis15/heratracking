@@ -27,7 +27,7 @@ export async function runJobHybrid(
   queued: Operation,
   env: Env,
 ): Promise<void> {
-  const claimed = await claimOperation(supabase, queued.id);
+  const claimed = await claimOperation(supabase, queued.id, queued.job_mode);
   if (!claimed) {
     console.log(`[worker] Operação ${queued.id} já claimada por outro processo`);
     return;

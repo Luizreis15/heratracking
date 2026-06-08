@@ -12,6 +12,7 @@ import {
   groupIntelByDay,
 } from "@/lib/intel-events";
 import type { IntelEvent } from "@/types/index";
+import { toastError, toastWarning } from "@/lib/toast";
 import type { OperationContext } from "./operation-context";
 
 const SCAN_OPTIONS = [
@@ -27,8 +28,7 @@ export function InteligenciaView() {
   const { operation, competitors, operationId } = useOutletContext<OperationContext>();
   const queryClient = useQueryClient();
   const busy =
-    operation.status === "queued" ||
-    operation.status === "running" ||
+    (operation.status === "queued" || operation.status === "running") &&
     operation.job_mode === "intel";
 
   const { data: events = [], isLoading, isError } = useIntelEvents(operationId, {
@@ -66,7 +66,7 @@ export function InteligenciaView() {
 
   async function handleScan() {
     if (competitors.length === 0) {
-      alert("Mapeie concorrentes antes de rodar o scan de inteligência.");
+      toastWarning("Mapeie concorrentes antes de rodar o scan de inteligência.");
       return;
     }
 
@@ -84,7 +84,7 @@ export function InteligenciaView() {
     setScanning(false);
 
     if (error) {
-      alert(`Erro: ${error.message}`);
+      toastError(`Erro: ${error.message}`);
       return;
     }
 

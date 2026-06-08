@@ -14,7 +14,7 @@ export function OperationLayout() {
   const queryClient = useQueryClient();
 
   // ── Supabase Realtime ────────────────────────────────────────────────────────
-  // Single channel per operation — subscribes to all 4 relevant tables.
+  // Single channel per operation — invalida cache ao vivo quando o worker grava.
   // When a row changes the worker wrote, the query cache is immediately
   // invalidated so the UI reflects the new state within ~100 ms instead of
   // waiting for the next polling interval (now kept at 30 s as a fallback only).
@@ -50,6 +50,21 @@ export function OperationLayout() {
           void queryClient.invalidateQueries({ queryKey: ["intel_events", id] });
           void queryClient.invalidateQueries({ queryKey: ["intel_badge", id] });
         },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comparison_reports", filter: `operation_id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["comparison_report", id] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "content_items", filter: `operation_id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["content_items", id] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "operation_metrics", filter: `operation_id=eq.${id}` },
+        () => void queryClient.invalidateQueries({ queryKey: ["operation_metrics", id] }),
       )
       .subscribe();
 

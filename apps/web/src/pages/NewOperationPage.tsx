@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Zap } from "lucide-react";
+import { toastError } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseSeedsFromText } from "@/lib/concorrente-seeds";
@@ -77,7 +78,7 @@ export function NewOperationPage() {
       .single();
 
     if (error) {
-      alert(`Erro ao criar operação: ${error.message}`);
+      toastError(`Erro ao criar operação: ${error.message}`);
       return;
     }
 

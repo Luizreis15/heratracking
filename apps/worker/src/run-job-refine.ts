@@ -4,16 +4,15 @@ import type { Operation } from "./types.js";
 import {
   appendPhaseLog,
   claimOperation,
+  incrementOperationCost,
   markOperationDone,
   markOperationError,
   mergeBlueprintSections,
 } from "./persist.js";
+import { callClaudeMessages } from "./anthropic/client.js";
 import { parseRefineBlock } from "./parser.js";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const REFINE_MODEL = "claude-opus-4-8";
-
-const RATES = { input: 15 / 1_000_000, output: 75 / 1_000_000 };
 
 const SECTION_NAMES: Record<string, string> = {
   mercado_icp: "Mercado + ICP",
@@ -24,60 +23,6 @@ const SECTION_NAMES: Record<string, string> = {
   checklist: "Checklist de Implementação",
   hipoteses: "Hipóteses a Validar",
 };
-
-type AnthropicResponse = {
-  content: Array<{ type: string; text?: string }>;
-  usage: { input_tokens: number; output_tokens: number };
-  error?: { message: string; type: string };
-};
-
-async function callClaude(
-  apiKey: string,
-  system: string,
-  user: string,
-): Promise<{ text: string; costUsd: number }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120_000);
-
-  try {
-    const res = await fetch(ANTHROPIC_URL, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: REFINE_MODEL,
-        max_tokens: 8192,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
-      signal: controller.signal,
-    });
-
-    const body = (await res.json()) as AnthropicResponse;
-
-    if (!res.ok) {
-      throw new Error(body.error?.message ?? `Anthropic HTTP ${res.status}`);
-    }
-
-    const text = body.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("\n");
-
-    if (!text.trim()) throw new Error("Claude retornou resposta vazia");
-
-    const costUsd =
-      body.usage.input_tokens * RATES.input +
-      body.usage.output_tokens * RATES.output;
-
-    return { text, costUsd };
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 function buildPrompt(
   sectionKey: string,
@@ -123,7 +68,7 @@ export async function runJobRefine(
   queued: Operation,
   env: Env,
 ): Promise<void> {
-  const claimed = await claimOperation(supabase, queued.id);
+  const claimed = await claimOperation(supabase, queued.id, queued.job_mode);
   if (!claimed) {
     console.log(`[worker][refine] ${queued.id} já claimado`);
     return;
@@ -170,7 +115,13 @@ export async function runJobRefine(
       claimed,
     );
 
-    const { text, costUsd } = await callClaude(env.ANTHROPIC_API_KEY, system, user);
+    const { text, costUsd } = await callClaudeMessages(env.ANTHROPIC_API_KEY, {
+      model: REFINE_MODEL,
+      maxTokens: 8192,
+      system,
+      user,
+      timeoutMs: 120_000,
+    });
 
     const refined = parseRefineBlock(text, section_key);
 
@@ -189,8 +140,8 @@ export async function runJobRefine(
       `✅ Seção "${sectionName}" refinada com sucesso`,
     );
 
-    const prevCost = claimed.cost_usd ?? 0;
-    await markOperationDone(supabase, operationId, prevCost + costUsd, {
+    if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
+    await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
     });
 

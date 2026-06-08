@@ -3,6 +3,10 @@ import type { PhaseName } from "./constants.js";
 import { parseCompetitorsBlock, parsePhaseBlocks } from "./parser.js";
 import { persistCompetitors, persistPhase } from "./persist.js";
 
+const PHASE_BLOCK_RE = /<<<HERA_PHASE:\w+>>>\s*[\s\S]*?\s*<<<END>>>/g;
+const COMPETITORS_BLOCK_RE = /<<<HERA_COMPETITORS>>>\s*[\s\S]*?\s*<<<END>>>/g;
+const BUFFER_MAX = 24_000;
+
 export type JobState = {
   currentPhase: PhaseName;
   processedPhases: Set<string>;
@@ -17,6 +21,18 @@ export function createJobState(): JobState {
     competitorsProcessed: false,
     buffer: "",
   };
+}
+
+/** Remove blocos já parseados e limita tamanho — evita buffer de MB em jobs longos */
+function trimBuffer(buffer: string): string {
+  let trimmed = buffer
+    .replace(PHASE_BLOCK_RE, "")
+    .replace(COMPETITORS_BLOCK_RE, "")
+    .trim();
+  if (trimmed.length > BUFFER_MAX) {
+    trimmed = trimmed.slice(-BUFFER_MAX);
+  }
+  return trimmed;
 }
 
 export async function ingestText(
@@ -48,4 +64,6 @@ export async function ingestText(
       opts?.competitorMode ?? "insert",
     );
   }
+
+  state.buffer = trimBuffer(state.buffer);
 }

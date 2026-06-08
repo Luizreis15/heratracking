@@ -1,20 +1,20 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 const storageKey = (opId: string) => `intel_viewed_${opId}`;
 
+function readLastViewed(operationId: string): string {
+  return localStorage.getItem(storageKey(operationId)) ?? "1970-01-01T00:00:00Z";
+}
+
 export function useIntelBadge(operationId: string | undefined) {
   const queryClient = useQueryClient();
 
-  const [lastViewed, setLastViewed] = useState<string | null>(() =>
-    operationId ? (localStorage.getItem(storageKey(operationId)) ?? null) : null,
-  );
-
   const { data: count = 0 } = useQuery<number>({
-    queryKey: ["intel_badge", operationId, lastViewed],
+    queryKey: ["intel_badge", operationId],
     queryFn: async () => {
-      const since = lastViewed ?? "1970-01-01T00:00:00Z";
+      const since = readLastViewed(operationId!);
       const { count: c } = await supabase
         .from("intel_events")
         .select("id", { count: "exact", head: true })
@@ -28,9 +28,7 @@ export function useIntelBadge(operationId: string | undefined) {
 
   const markRead = useCallback(() => {
     if (!operationId) return;
-    const now = new Date().toISOString();
-    localStorage.setItem(storageKey(operationId), now);
-    setLastViewed(now);
+    localStorage.setItem(storageKey(operationId), new Date().toISOString());
     void queryClient.invalidateQueries({ queryKey: ["intel_badge", operationId] });
   }, [operationId, queryClient]);
 

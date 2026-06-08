@@ -9,13 +9,13 @@ import {
   profileFromOperation,
   type OperadorProfile,
 } from "@/lib/operador-profile";
+import { toastError } from "@/lib/toast";
 import type { OperationContext } from "./operation-context";
 
 export function HeraDgView() {
   const { operation, competitors, operationId } = useOutletContext<OperationContext>();
   const comparativoBusy =
-    operation.status === "queued" ||
-    operation.status === "running" ||
+    (operation.status === "queued" || operation.status === "running") &&
     operation.job_mode === "comparativo";
   const { workspace } = useAuth();
   const empresaFallback = workspace?.name?.trim() || "Minha empresa";
@@ -51,7 +51,7 @@ export function HeraDgView() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao salvar perfil.");
+      toastError(err instanceof Error ? err.message : "Erro ao salvar perfil.");
     }
   }
 

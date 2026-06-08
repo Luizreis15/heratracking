@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, Link2, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { toastError } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
 
 export function MetaPremiumPanel() {
@@ -26,7 +27,7 @@ export function MetaPremiumPanel() {
 
     setSaving(false);
     if (error) {
-      alert(`Erro: ${error.message}`);
+      toastError(`Erro: ${error.message}`);
       return;
     }
     if (data) setWorkspace(data);

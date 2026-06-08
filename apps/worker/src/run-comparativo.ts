@@ -6,6 +6,8 @@ import type { Env } from "./env.js";
 import {
   appendPhaseLog,
   claimOperation,
+  incrementOperationCost,
+  loadMethodProfile,
   markOperationDone,
   markOperationError,
   persistComparisonReport,
@@ -13,20 +15,6 @@ import {
 } from "./persist.js";
 import { extractAssistantText, parseComparativoBlock } from "./parser.js";
 import type { MethodProfile, Operation } from "./types.js";
-
-async function loadMethodProfile(
-  supabase: SupabaseClient,
-  workspaceId: string,
-): Promise<MethodProfile | null> {
-  const { data } = await supabase
-    .from("method_profiles")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data as MethodProfile | null;
-}
 
 function operadorFromOperation(
   operation: Operation,
@@ -51,7 +39,7 @@ export async function runComparativo(
   queued: Operation,
   env: Env,
 ): Promise<void> {
-  const claimed = await claimOperation(supabase, queued.id);
+  const claimed = await claimOperation(supabase, queued.id, queued.job_mode);
   if (!claimed) return;
 
   const operationId = claimed.id;
@@ -136,8 +124,8 @@ export async function runComparativo(
 
     await persistComparisonReport(supabase, operationId, content, totalCostUsd, "claude-agent");
 
-    const prevCost = claimed.cost_usd ?? 0;
-    await markOperationDone(supabase, operationId, prevCost + (totalCostUsd ?? 0), {
+    if (totalCostUsd) await incrementOperationCost(supabase, operationId, totalCostUsd);
+    await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
     });
 

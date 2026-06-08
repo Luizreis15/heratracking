@@ -15,6 +15,7 @@ import {
   parseComparativoContent,
   type ConcorrenteAnalise,
 } from "@/lib/comparativo-report";
+import { toastError, toastWarning } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
 
 type Props = {
@@ -49,7 +50,7 @@ export function AnaliseDecisaoPanel({
 
   async function handleGenerate() {
     if (competitorCount === 0) {
-      alert("Mapeie concorrentes na aba Concorrência antes de gerar a análise.");
+      toastWarning("Mapeie concorrentes na aba Concorrência antes de gerar a análise.");
       return;
     }
 
@@ -67,7 +68,7 @@ export function AnaliseDecisaoPanel({
     setScanning(false);
 
     if (error) {
-      alert(`Erro: ${error.message}`);
+      toastError(`Erro: ${error.message}`);
       return;
     }
 

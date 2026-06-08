@@ -4,64 +4,14 @@ import type { Operation } from "./types.js";
 import {
   appendPhaseLog,
   claimOperation,
+  incrementOperationCost,
   markOperationDone,
   markOperationError,
 } from "./persist.js";
+import { callClaudeMessages } from "./anthropic/client.js";
 import { parseContentBlock } from "./parser.js";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const CONTENT_MODEL = "claude-opus-4-8";
-const RATES = { input: 15 / 1_000_000, output: 75 / 1_000_000 };
-
-type AnthropicResponse = {
-  content: Array<{ type: string; text?: string }>;
-  usage: { input_tokens: number; output_tokens: number };
-  error?: { message: string };
-};
-
-async function callClaude(
-  apiKey: string,
-  system: string,
-  user: string,
-): Promise<{ text: string; costUsd: number }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 180_000);
-
-  try {
-    const res = await fetch(ANTHROPIC_URL, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: CONTENT_MODEL,
-        max_tokens: 16384,
-        system,
-        messages: [{ role: "user", content: user }],
-      }),
-      signal: controller.signal,
-    });
-
-    const body = (await res.json()) as AnthropicResponse;
-    if (!res.ok) throw new Error(body.error?.message ?? `Anthropic HTTP ${res.status}`);
-
-    const text = body.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text ?? "")
-      .join("\n");
-
-    if (!text.trim()) throw new Error("Claude retornou resposta vazia");
-
-    return {
-      text,
-      costUsd: body.usage.input_tokens * RATES.input + body.usage.output_tokens * RATES.output,
-    };
-  } finally {
-    clearTimeout(timer);
-  }
-}
 
 const FORMAT_SCHEMAS: Record<string, string> = {
   post_instagram: `{ "titulo": "hook em 1 linha", "corpo": "caption com 3-5 parágrafos curtos, emojis permitidos", "cta": "chamada para ação", "hashtags": ["#hashtag1", ...] }`,
@@ -134,7 +84,7 @@ export async function runJobContent(
   queued: Operation,
   env: Env,
 ): Promise<void> {
-  const claimed = await claimOperation(supabase, queued.id);
+  const claimed = await claimOperation(supabase, queued.id, queued.job_mode);
   if (!claimed) {
     console.log(`[worker][content] ${queued.id} já claimado`);
     return;
@@ -160,7 +110,13 @@ export async function runJobContent(
     );
 
     const { system, user } = buildPrompt(claimed);
-    const { text, costUsd } = await callClaude(env.ANTHROPIC_API_KEY, system, user);
+    const { text, costUsd } = await callClaudeMessages(env.ANTHROPIC_API_KEY, {
+      model: CONTENT_MODEL,
+      maxTokens: 16384,
+      system,
+      user,
+      timeoutMs: 180_000,
+    });
 
     const items = parseContentBlock(text);
 
@@ -187,8 +143,8 @@ export async function runJobContent(
       `✅ ${rows.length} peças gravadas com sucesso`,
     );
 
-    const prevCost = claimed.cost_usd ?? 0;
-    await markOperationDone(supabase, operationId, prevCost + costUsd, {
+    if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
+    await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
     });
 

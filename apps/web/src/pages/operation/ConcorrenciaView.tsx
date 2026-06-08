@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Users } from "lucide-react";
+import { toastError, toastWarning } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
 import {
   formatSeedsForTextarea,
@@ -178,7 +179,7 @@ function EnrichCompetitorsPanel({
   async function handleEnrich() {
     const added = parseSeedsFromText(text);
     if (added.length === 0) {
-      alert("Informe ao menos uma agência (uma por linha).");
+      toastWarning("Informe ao menos uma agência (uma por linha).");
       return;
     }
 
@@ -199,7 +200,7 @@ function EnrichCompetitorsPanel({
     setSubmitting(false);
 
     if (error) {
-      alert(`Erro: ${error.message}`);
+      toastError(`Erro: ${error.message}`);
       return;
     }
 
