@@ -4,58 +4,36 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%;
-    --radius: 0.5rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-  }
+    /* Hera Tracking — navy + ouro */
+    --background: 217 45% 16%;
+    --foreground: 36 33% 93%;
+    --card: 216 43% 25%;
+    --card-foreground: 36 33% 93%;
+    --popover: 216 44% 20%;
+    --popover-foreground: 36 33% 93%;
+    --primary: 43 54% 54%;
+    --primary-foreground: 217 45% 12%;
+    --secondary: 216 44% 20%;
+    --secondary-foreground: 36 33% 93%;
+    --muted: 216 44% 20%;
+    --muted-foreground: 210 20% 65%;
+    --accent: 216 43% 28%;
+    --accent-foreground: 36 33% 93%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 36 33% 93%;
+    --border: 216 35% 30%;
+    --input: 216 35% 28%;
+    --ring: 43 54% 54%;
+    --radius: 0.625rem;
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 262 83% 58%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --hera-navy: 217 45% 16%;
+    --hera-surface: 216 44% 20%;
+    --hera-card: 216 43% 25%;
+    --hera-cream: 36 33% 93%;
+    --hera-gold: 43 54% 54%;
+    --hera-done: 162 61% 64%;
+    --hera-running: 210 49% 66%;
+    --hera-alert: 37 71% 59%;
   }
 }
 
@@ -64,6 +42,42 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  h1, h2, h3, .font-display {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .hera-sidebar {
+    @apply bg-[hsl(var(--hera-navy))] border-r border-border;
+  }
+  .hera-surface {
+    @apply bg-[hsl(var(--hera-surface))];
+  }
+  .hera-card {
+    @apply bg-[hsl(var(--hera-card))] border border-border rounded-lg;
+  }
+  .hera-label {
+    @apply text-[11px] font-semibold uppercase tracking-wider text-muted-foreground;
+  }
+  .hera-btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-semibold
+           bg-primary text-primary-foreground hover:bg-primary/90 transition-colors
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .hera-btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm
+           text-muted-foreground hover:text-foreground hover:bg-accent transition-colors;
+  }
+  .hera-nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors;
+  }
+  .hera-nav-item-active {
+    @apply bg-primary/15 text-primary border-l-2 border-primary pl-[10px];
+  }
+  .hera-nav-item-idle {
+    @apply text-muted-foreground hover:text-foreground hover:bg-accent/60;
   }
 }

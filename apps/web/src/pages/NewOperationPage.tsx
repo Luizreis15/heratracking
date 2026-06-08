@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ArrowLeft, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { parseSeedsFromText } from "@/lib/concorrente-seeds";
 
 const schema = z.object({
   nicho: z
@@ -18,6 +19,7 @@ const schema = z.object({
   ticket_alvo: z.string().min(2, "Informe o ticket-alvo").max(100),
   modelo_entrega: z.string().min(3, "Selecione ou descreva o modelo").max(200),
   restricoes: z.string().max(2000).default(""),
+  concorrentes_manuais: z.string().max(5000).default(""),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -43,7 +45,15 @@ export function NewOperationPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { restricoes: DEFAULT_RESTRICOES },
+    defaultValues: {
+      nicho: "Clínicas e consultórios implantodontistas (seus clientes B2B)",
+      posicionamento:
+        "Digital Hera Marketing / Hera DG — agência especializada em estruturar marketing digital para clínicas captarem mais pacientes de implante e reabilitação oral",
+      ticket_alvo: "R$ 2.500 – R$ 4.000/mês (retainer que a clínica paga à agência)",
+      modelo_entrega: "Gestão de tráfego + assessoria estratégica",
+      restricoes: DEFAULT_RESTRICOES,
+      concorrentes_manuais: "Agência Comia | https://agenciacomia.com.br",
+    },
   });
 
   async function onSubmit(data: FormData) {
@@ -59,6 +69,8 @@ export function NewOperationPage() {
         ticket_alvo: data.ticket_alvo,
         modelo_entrega: data.modelo_entrega,
         restricoes: data.restricoes,
+        concorrentes_seeds: parseSeedsFromText(data.concorrentes_manuais),
+        job_mode: "full",
         status: "queued",
       })
       .select()
@@ -73,33 +85,36 @@ export function NewOperationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4 flex items-center gap-4">
-        <button
-          onClick={() => navigate("/")}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div>
-          <h1 className="text-base font-semibold text-foreground">Nova Operação</h1>
-          <p className="text-xs text-muted-foreground">
-            Briefing para o Arquiteto de Agência
-          </p>
+    <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="flex items-start gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="hera-btn-ghost mt-1"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <div>
+            <p className="hera-label mb-1">Briefing</p>
+            <h1 className="font-serif text-2xl font-semibold text-foreground">Nova operação</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              O worker gera o Blueprint e o mapa de concorrência em background.
+            </p>
+          </div>
         </div>
-      </header>
 
-      <main className="max-w-2xl mx-auto px-6 py-10">
+        <div className="hera-card p-6 lg:p-8">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           {/* Nicho */}
           <Field
-            label="Nicho do cliente final"
-            hint="Ex: clínicas de implante dentário, estética avançada, escolas bilíngues"
+            label="Quem é seu cliente B2B (ICP)"
+            hint="Quem contrata e paga sua agência — ex.: clínicas implantodontistas, consultórios de reabilitação oral"
             error={errors.nicho?.message}
           >
             <input
               type="text"
-              placeholder="Clínicas de implante dentário e reabilitação oral"
+              placeholder="Clínicas e consultórios implantodontistas"
               className={inputCls(!!errors.nicho)}
               {...register("nicho")}
             />
@@ -107,13 +122,13 @@ export function NewOperationPage() {
 
           {/* Posicionamento */}
           <Field
-            label="Posicionamento / expertise do operador"
-            hint="O que você domina e como quer ajudar esse nicho"
+            label="Posicionamento da sua agência"
+            hint="Como a Digital Hera / Hera DG se vende para esses clientes B2B"
             error={errors.posicionamento?.message}
           >
             <textarea
               rows={3}
-              placeholder="Agência especializada em atrair pacientes de alto valor para clínicas odontológicas via tráfego pago e marketing digital..."
+              placeholder="Agência especializada em marketing digital para clínicas de implante captarem mais pacientes de alto valor..."
               className={inputCls(!!errors.posicionamento)}
               {...register("posicionamento")}
             />
@@ -121,13 +136,13 @@ export function NewOperationPage() {
 
           {/* Ticket-alvo */}
           <Field
-            label="Ticket-alvo de contrato"
-            hint="Valor mensal que você quer cobrar dos seus clientes"
+            label="Ticket do contrato (clínica → agência)"
+            hint="Mensalidade/retainer que a clínica paga a você — NÃO é o preço do implante para o paciente"
             error={errors.ticket_alvo?.message}
           >
             <input
               type="text"
-              placeholder="R$ 2.500 – 3.500/mês"
+              placeholder="R$ 2.500 – R$ 4.000/mês"
               className={inputCls(!!errors.ticket_alvo)}
               {...register("ticket_alvo")}
             />
@@ -155,6 +170,20 @@ export function NewOperationPage() {
             </select>
           </Field>
 
+          {/* Concorrentes manuais */}
+          <Field
+            label="Agências concorrentes (opcional)"
+            hint="Uma por linha: Nome ou Nome | https://site.com — o worker pesquisa e enriquece cada uma"
+            error={errors.concorrentes_manuais?.message}
+          >
+            <textarea
+              rows={4}
+              placeholder={"Agência Comia | https://agenciacomia.com.br\nOutra Agência | https://..."}
+              className={inputCls(!!errors.concorrentes_manuais)}
+              {...register("concorrentes_manuais")}
+            />
+          </Field>
+
           {/* Restrições / Compliance */}
           <Field
             label="Restrições e compliance do nicho"
@@ -173,21 +202,20 @@ export function NewOperationPage() {
             <button
               type="submit"
               disabled={isSubmitting || !workspace}
-              className="w-full flex items-center justify-center gap-2 py-3 px-6
-                         bg-primary text-primary-foreground rounded-lg text-sm font-medium
-                         hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
-                         transition-colors"
+              className="w-full hera-btn-primary justify-center py-3"
             >
               <Zap className="h-4 w-4" />
               {isSubmitting ? "Criando operação..." : "Iniciar Blueprint"}
             </button>
             <p className="text-center text-xs text-muted-foreground mt-2">
-              O job de 20–30 min roda em background — você pode fechar a aba e voltar.
+              A Fase 1 mapeia dores das clínicas (ICP) e agências concorrentes (ex.: agenciacomia.com.br).
+              Job de 20–30 min em background.
             </p>
           </div>
         </form>
-      </main>
-    </div>
+        </div>
+      </div>
+    </main>
   );
 }
 

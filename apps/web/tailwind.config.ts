@@ -5,12 +5,26 @@ const config: Config = {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        serif: ['"Cormorant Garamond"', "Georgia", "serif"],
+        sans: ['"Inter Tight"', "Inter", "system-ui", "sans-serif"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        hera: {
+          navy: "hsl(var(--hera-navy))",
+          surface: "hsl(var(--hera-surface))",
+          card: "hsl(var(--hera-card))",
+          cream: "hsl(var(--hera-cream))",
+          gold: "hsl(var(--hera-gold))",
+          done: "hsl(var(--hera-done))",
+          running: "hsl(var(--hera-running))",
+          alert: "hsl(var(--hera-alert))",
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

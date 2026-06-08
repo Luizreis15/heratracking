@@ -124,6 +124,41 @@ export type Database = {
           },
         ]
       }
+      comparison_reports: {
+        Row: {
+          content: Json
+          cost_usd: number | null
+          generated_at: string
+          id: string
+          model: string | null
+          operation_id: string
+        }
+        Insert: {
+          content?: Json
+          cost_usd?: number | null
+          generated_at?: string
+          id?: string
+          model?: string | null
+          operation_id: string
+        }
+        Update: {
+          content?: Json
+          cost_usd?: number | null
+          generated_at?: string
+          id?: string
+          model?: string | null
+          operation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comparison_reports_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: true
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exports: {
         Row: {
           blueprint_id: string
@@ -191,8 +226,119 @@ export type Database = {
           },
         ]
       }
+      intel_events: {
+        Row: {
+          competitor_id: string | null
+          competitor_nome: string
+          created_at: string
+          detected_at: string
+          event_type: string
+          fonte: string | null
+          id: string
+          operation_id: string
+          resumo: string | null
+          scan_id: string
+          titulo: string
+          url: string | null
+        }
+        Insert: {
+          competitor_id?: string | null
+          competitor_nome: string
+          created_at?: string
+          detected_at?: string
+          event_type: string
+          fonte?: string | null
+          id?: string
+          operation_id: string
+          resumo?: string | null
+          scan_id?: string
+          titulo: string
+          url?: string | null
+        }
+        Update: {
+          competitor_id?: string | null
+          competitor_nome?: string
+          created_at?: string
+          detected_at?: string
+          event_type?: string
+          fonte?: string | null
+          id?: string
+          operation_id?: string
+          resumo?: string | null
+          scan_id?: string
+          titulo?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intel_events_competitor_id_fkey"
+            columns: ["competitor_id"]
+            isOneToOne: false
+            referencedRelation: "competitors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intel_events_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      operation_metrics: {
+        Row: {
+          agendamentos: number
+          conteudos_criados: number
+          conteudos_publicados: number
+          created_at: string
+          id: string
+          leads_captados: number
+          notas: string | null
+          operation_id: string
+          period_month: string
+          reunioes_realizadas: number
+          updated_at: string
+        }
+        Insert: {
+          agendamentos?: number
+          conteudos_criados?: number
+          conteudos_publicados?: number
+          created_at?: string
+          id?: string
+          leads_captados?: number
+          notas?: string | null
+          operation_id: string
+          period_month: string
+          reunioes_realizadas?: number
+          updated_at?: string
+        }
+        Update: {
+          agendamentos?: number
+          conteudos_criados?: number
+          conteudos_publicados?: number
+          created_at?: string
+          id?: string
+          leads_captados?: number
+          notas?: string | null
+          operation_id?: string
+          period_month?: string
+          reunioes_realizadas?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operation_metrics_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operations: {
         Row: {
+          concorrentes_seeds: Json
           cost_usd: number | null
           created_at: string
           created_by: string
@@ -200,6 +346,8 @@ export type Database = {
           error: string | null
           finished_at: string | null
           id: string
+          job_mode: string
+          last_intel_scan_at: string | null
           modelo_entrega: string
           nicho: string
           posicionamento: string
@@ -209,6 +357,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          concorrentes_seeds?: Json
           cost_usd?: number | null
           created_at?: string
           created_by: string
@@ -216,6 +365,8 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
+          job_mode?: string
+          last_intel_scan_at?: string | null
           modelo_entrega: string
           nicho: string
           posicionamento: string
@@ -225,6 +376,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          concorrentes_seeds?: Json
           cost_usd?: number | null
           created_at?: string
           created_by?: string
@@ -232,6 +384,8 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
+          job_mode?: string
+          last_intel_scan_at?: string | null
           modelo_entrega?: string
           nicho?: string
           posicionamento?: string
@@ -317,18 +471,21 @@ export type Database = {
       workspaces: {
         Row: {
           created_at: string
+          hera_premium_client_id: string | null
           id: string
           name: string
           owner_id: string
         }
         Insert: {
           created_at?: string
+          hera_premium_client_id?: string | null
           id?: string
           name: string
           owner_id: string
         }
         Update: {
           created_at?: string
+          hera_premium_client_id?: string | null
           id?: string
           name?: string
           owner_id?: string

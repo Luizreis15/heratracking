@@ -1,11 +1,13 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { useWorkspaceBootstrap } from "@/hooks/useWorkspaceBootstrap";
 import { supabase } from "@/lib/supabase";
 import type { Workspace } from "@/types/index";
 
@@ -15,6 +17,8 @@ interface AuthContextValue {
   workspace: Workspace | null;
   isSuperAdmin: boolean;
   loading: boolean;
+  bootstrapping: boolean;
+  bootstrapError: string | null;
   setWorkspace: (ws: Workspace) => void;
   signOut: () => Promise<void>;
 }
@@ -42,9 +46,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  async function signOut() {
+  const setWorkspaceStable = useCallback((ws: Workspace) => {
+    setWorkspace(ws);
+  }, []);
+
+  const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-  }
+  }, []);
+
+  const { bootstrapping, bootstrapError } = useWorkspaceBootstrap(
+    session,
+    workspace,
+    setWorkspaceStable,
+  );
 
   const isSuperAdmin =
     (session?.user?.app_metadata?.super_admin as boolean | undefined) === true;
@@ -57,7 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         workspace,
         isSuperAdmin,
         loading,
-        setWorkspace,
+        bootstrapping,
+        bootstrapError,
+        setWorkspace: setWorkspaceStable,
         signOut,
       }}
     >

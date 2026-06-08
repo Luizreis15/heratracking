@@ -81,7 +81,9 @@ export function AuthPage() {
       <div className="w-full max-w-sm space-y-6">
         {/* Logo */}
         <div className="text-center space-y-1">
-          <h1 className="text-2xl font-bold text-primary tracking-tight">HERA Arquiteto</h1>
+          <h1 className="font-serif text-3xl font-semibold text-foreground tracking-tight">
+            Hera <span className="text-primary">Tracking</span>
+          </h1>
           <p className="text-muted-foreground text-sm">
             {mode === "login" ? "Acesse sua conta" : "Crie sua conta"}
           </p>
