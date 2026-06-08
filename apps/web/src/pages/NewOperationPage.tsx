@@ -5,6 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Zap } from "lucide-react";
 import { BRIEFING_TEMPLATES, getBriefingTemplate } from "@/lib/briefing-templates";
+import {
+  OPERADOR_TIPO_OPTIONS,
+  type OperadorTipo,
+} from "@/lib/operador-tipo";
 import { toastError } from "@/lib/toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,6 +38,8 @@ const MODELOS = [
   "Retainer mensal + setup inicial",
   "Gestão de tráfego + assessoria estratégica",
   "Consultoria estratégica pontual",
+  "SaaS por assinatura + implantação/onboarding",
+  "SaaS self-service + planos enterprise",
 ];
 
 const DEFAULT_RESTRICOES =
@@ -52,6 +58,7 @@ export function NewOperationPage() {
   const { workspace, user } = useAuth();
   const navigate = useNavigate();
   const [templateId, setTemplateId] = useState("blank");
+  const [operadorTipo, setOperadorTipo] = useState<OperadorTipo>("agencia");
   const [operadorPerfil, setOperadorPerfil] = useState<Record<string, unknown> | null>(
     null,
   );
@@ -78,6 +85,7 @@ export function NewOperationPage() {
       restricoes: t.restricoes,
       concorrentes_manuais: t.concorrentes_manuais,
     });
+    setOperadorTipo(t.operador_tipo);
     setOperadorPerfil(t.operador_perfil ? { ...t.operador_perfil } : null);
   }
 
@@ -96,6 +104,7 @@ export function NewOperationPage() {
         restricoes: data.restricoes,
         concorrentes_seeds: parseSeedsFromText(data.concorrentes_manuais),
         operador_perfil: operadorPerfil as Json,
+        operador_tipo: operadorTipo,
         job_mode: "full",
         status: "queued",
       })
@@ -134,6 +143,37 @@ export function NewOperationPage() {
 
         <div className="hera-card p-6 lg:p-8">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <Field
+            label="Tipo de operador"
+            hint="Define quem é o 'nós' e quem são os concorrentes no mapa"
+          >
+            <div className="space-y-2">
+              {OPERADOR_TIPO_OPTIONS.map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex items-start gap-3 p-3 rounded-md border cursor-pointer transition-colors ${
+                    operadorTipo === opt.value
+                      ? "border-primary bg-primary/10"
+                      : "border-input hover:border-primary/40"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="operador_tipo"
+                    value={opt.value}
+                    checked={operadorTipo === opt.value}
+                    onChange={() => setOperadorTipo(opt.value)}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="text-sm font-medium text-foreground block">{opt.label}</span>
+                    <span className="text-xs text-muted-foreground">{opt.description}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </Field>
+
           <Field
             label="Template de briefing"
             hint="Pré-preenche o formulário — você pode editar antes de enviar"

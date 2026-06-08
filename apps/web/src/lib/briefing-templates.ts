@@ -1,7 +1,10 @@
+import type { OperadorTipo } from "@/lib/operador-tipo";
+
 export type BriefingTemplate = {
   id: string;
   label: string;
   description: string;
+  operador_tipo: OperadorTipo;
   nicho: string;
   posicionamento: string;
   ticket_alvo: string;
@@ -26,6 +29,7 @@ export const BRIEFING_TEMPLATES: BriefingTemplate[] = [
     id: "blank",
     label: "Em branco",
     description: "Preencha todos os campos manualmente.",
+    operador_tipo: "agencia",
     nicho: "",
     posicionamento: "",
     ticket_alvo: "",
@@ -35,37 +39,57 @@ export const BRIEFING_TEMPLATES: BriefingTemplate[] = [
     concorrentes_manuais: "",
   },
   {
-    id: "fora-da-caixa-homologacao",
-    label: "Fora da Caixa — SaaS homologação online",
+    id: "veramo-homologacao",
+    label: "Veramo — SaaS homologação online",
     description:
-      "Agência B2B atendendo SaaS de homologação de fornecedores. Grande teste nicho-agnóstico.",
+      "Plataforma B2B para sindicatos e empresas. Concorrência = outras soluções de homologação, não agências.",
+    operador_tipo: "saas_b2b",
     nicho:
-      "Empresas de médio e grande porte (indústria, varejo, construção, energia) que precisam homologar fornecedores online — e SaaS B2B que vendem plataforma de homologação para essas empresas",
+      "Sindicatos, escritórios de contabilidade e empresas de médio/grande porte que precisam realizar homologações online (ciclo trabalhista e compliance de fornecedores)",
     posicionamento:
-      "Fora da Caixa — agência de growth e marketing B2B especializada em posicionar e escalar SaaS de homologação online: geração de pipeline enterprise, autoridade em compliance de fornecedores e conteúdo para decisores de compras/suprimentos",
-    ticket_alvo: "R$ 8.000 – R$ 18.000/mês (retainer growth B2B + tráfego)",
-    modelo_entrega: "Retainer mensal + setup inicial",
+      "Veramo — plataforma digital com soluções para sindicatos e empresas que precisam digitalizar e escalar o processo de homologação de fornecedores online, com foco em compliance, agilidade e redução de risco",
+    ticket_alvo: "R$ 2.000 – R$ 15.000/mês (assinatura SaaS conforme porte e módulos)",
+    modelo_entrega: "SaaS por assinatura + implantação/onboarding",
     restricoes: `LGPD: não expor dados de terceiros em cases sem autorização.
-Não prometer "homologação garantida", certificação automática ou conformidade legal sem base documentada.
-Evitar claims de ROI percentual sem estudo de caso verificável.
-Tom enterprise: direto, técnico-comercial, sem hype de startup genérica.
-Não confundir concorrentes do operador (outras agências) com concorrentes do SaaS (outras plataformas de homologação).`,
+Não prometer homologação garantida, certificação automática ou conformidade legal sem base documentada.
+Tom B2B: direto para decisores de RH, compliance, suprimentos e diretoria sindical.
+HERA_COMPETITORS = outras plataformas/sistemas de homologação — NÃO agências de marketing.`,
+    concorrentes_manuais: `Gcertifica | https://www.gcertifica.com.br
+Alloy | https://www.alloy.al
+Votorantim Cimentos (referência mercado) | pesquisar plataformas similares`,
+    operador_perfil: {
+      nome: "Veramo",
+      oferta:
+        "Plataforma de homologação online para sindicatos e empresas — digitalização do ciclo trabalhista e compliance de fornecedores",
+      ticket: "R$ 2.000 – R$ 15.000/mês",
+      posicionamento:
+        "Solução especializada em homologação digital para entidades e empresas que precisam escalar compliance sem planilhas",
+      pontos_fortes: "Foco no nicho sindical/trabalhista; digitalização ponta a ponta",
+      pontos_fracos: "Marca em expansão; competir com planilhas e processos manuais",
+      notas: "Operador é SaaS — modelo de negócio = atrair e converter empresas/sindicatos, não vender marketing.",
+    },
+  },
+  {
+    id: "fora-da-caixa-homologacao",
+    label: "Fora da Caixa — agência para SaaS homologação",
+    description: "Agência de growth vendendo marketing para SaaS de homologação.",
+    operador_tipo: "agencia",
+    nicho:
+      "Founders e CMOs de SaaS B2B de homologação de fornecedores que contratam agência de growth",
+    posicionamento:
+      "Fora da Caixa — agência de growth B2B especializada em pipeline enterprise para SaaS de homologação e compliance",
+    ticket_alvo: "R$ 8.000 – R$ 18.000/mês (retainer growth B2B)",
+    modelo_entrega: "Retainer mensal + setup inicial",
+    restricoes: `LGPD em cases. Tom enterprise. Concorrência = outras agências B2B, não plataformas SaaS.`,
     concorrentes_manuais: `Agência Nuts | https://nutsmarketing.com.br
-RD Station (serviços/agência) | https://www.rdstation.com
 Rock Content | https://rockcontent.com`,
     operador_perfil: {
       nome: "Fora da Caixa",
-      url: "",
-      oferta:
-        "Growth B2B para SaaS: posicionamento, demand gen, conteúdo para decisores de suprimentos/compliance e tráfego qualificado",
+      oferta: "Growth B2B para SaaS de homologação",
       ticket: "R$ 8.000 – R$ 18.000/mês",
-      posicionamento:
-        "Única agência focada em growth para SaaS de homologação e compliance de fornecedores no Brasil",
-      pontos_fortes:
-        "Entendimento do ciclo de venda enterprise longo; conteúdo técnico-comercial; integração marketing + vendas",
-      pontos_fracos: "Marca ainda em construção; poucos cases públicos documentados",
-      notas:
-        "ICP primário: founders/CMOs de SaaS de homologação. ICP secundário: heads de suprimentos em empresas que compram o SaaS.",
+      posicionamento: "Agência focada em demand gen para SaaS enterprise",
+      pontos_fortes: "Conteúdo técnico-comercial B2B",
+      pontos_fracos: "Marca em construção",
     },
   },
 ];

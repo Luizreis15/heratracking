@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { WORKER_ROOT, type PhaseName } from "../constants.js";
 import { buildOperadorB2BContext, buildPesquisaPhaseInstructions } from "../operador-context.js";
+import { isSaasB2B } from "../operador-tipo.js";
 import type { MethodProfile, Operation } from "../types.js";
 
 const SKILL_REF = path.join(
@@ -142,20 +143,31 @@ export async function buildConcorrenciaEnrichMessages(
   const contract = await loadOutputContract();
   const b2bModel = await loadReference("00-operador-b2b.md");
 
+  const saas = isSaasB2B(operation);
   const existingBlock =
     existingCompetitors.length > 0
-      ? `## Agências já mapeadas (enriqueça e não duplique)\n${JSON.stringify(existingCompetitors, null, 2)}`
-      : "## Agências já mapeadas\nNenhuma ainda.";
+      ? `## ${saas ? "Players" : "Agências"} já mapeados (enriqueça e não duplique)\n${JSON.stringify(existingCompetitors, null, 2)}`
+      : `## ${saas ? "Players" : "Agências"} já mapeados\nNenhum ainda.`;
 
-  const system = `Você enriquece a análise de CONCORRÊNCIA B2B de uma agência de marketing.
+  const rulesBlock = saas
+    ? `Você enriquece a análise de CONCORRÊNCIA de mercado de um SaaS B2B.
+
+Regras:
+- HERA_COMPETITORS = somente outras PLATAFORMAS/SOFTWARES concorrentes (nunca agências de marketing nem o ICP).
+- Pesquise na web cada seed e cada player já mapeado.
+- Encontre: oferta, ticket/assinatura, posicionamento, funcionalidades, pontos fortes/fracos.
+- Inclua seeds + players atualizados + novos descobertos (mín. 1 novo se possível).`
+    : `Você enriquece a análise de CONCORRÊNCIA B2B de uma agência de marketing.
 
 Regras:
 - HERA_COMPETITORS = somente outras AGÊNCIAS/consultorias (nunca o ICP nem players do mercado do produto do ICP).
 - Pesquise na web cada seed manual e cada agência já mapeada.
 - Encontre dados novos: oferta, ticket retainer, posicionamento, ângulos criativos, pontos fortes/fracos.
-- Inclua seeds do operador + agências já mapeadas (atualizadas) + novas agências descobertas (mín. 1 nova se possível).
+- Inclua seeds do operador + agências já mapeadas (atualizadas) + novas agências descobertas (mín. 1 nova se possível).`;
 
-## Modelo B2B
+  const system = `${rulesBlock}
+
+## Modelo do operador
 ${b2bModel}
 
 ## Contrato HERA_COMPETITORS
@@ -168,9 +180,9 @@ ${briefingBlock(operation, profile)}
 ${existingBlock}
 
 ## Tarefa
-Enriquecer a análise de agências concorrentes.
+Enriquecer a análise de ${saas ? "players concorrentes do mercado" : "agências concorrentes"}.
 
-Para seeds com Instagram: faça buscas web pelo @handle, nome da operação, "agência marketing ${operation.nicho}", site na bio, ofertas e depoimentos. Preencha url, instagram (URL completa https://instagram.com/handle), oferta, ticket_estimado, posicionamento, pontos_fortes/fracos com o máximo de dados encontrados — marque lacunas como hipótese.
+Para seeds com Instagram: faça buscas web pelo @handle, nome do player, "${saas ? "plataforma" : "agência marketing"} ${operation.nicho}", site na bio, ofertas e depoimentos. Preencha url, instagram (URL completa https://instagram.com/handle), oferta, ticket_estimado, posicionamento, pontos_fortes/fracos com o máximo de dados encontrados — marque lacunas como hipótese.
 
 NÃO retorne entradas vazias para seeds do operador. Cada seed manual deve virar um item completo em HERA_COMPETITORS.
 

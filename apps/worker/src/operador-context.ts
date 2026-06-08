@@ -1,4 +1,5 @@
 import { formatSeedsForPrompt, parseSeeds } from "./concorrente-seeds.js";
+import { isSaasB2B } from "./operador-tipo.js";
 import type { MethodProfile, Operation } from "./types.js";
 
 type OperadorPerfil = {
@@ -33,8 +34,25 @@ function formatOperadorPerfil(p: OperadorPerfil): string {
   return lines.length > 0 ? lines.join("\n") : "";
 }
 
-/** Instruções da Fase 1 derivadas do briefing — sem hardcode de nicho */
+/** Instruções da Fase 1 derivadas do briefing e do tipo de operador */
 export function buildPesquisaPhaseInstructions(operation: Operation): string {
+  if (isSaasB2B(operation)) {
+    return `Duas pesquisas OBRIGATÓRIAS e distintas:
+
+A) ICP (empresas compradoras): dores, desejos e critérios de compra de **${operation.nicho}** ao avaliar/contratar uma plataforma SaaS como a do operador.
+   Buscas adaptadas: software homologação fornecedores, dores de compliance, ciclo de compra B2B, integração, LGPD.
+
+B) Concorrência do OPERADOR: outras **plataformas, softwares e soluções SaaS** que competem pelo mesmo ICP.
+   HERA_COMPETITORS = somente produtos/plataformas concorrentes. PROIBIDO listar agências de marketing ou o ICP como concorrente.
+   ticket_estimado = preço típico de assinatura/contrato que o concorrente cobra do ICP (referência: ${operation.ticket_alvo}).
+
+Use no mínimo 6 buscas distintas (3 para ICP + 3 para plataformas concorrentes).
+Ao final, emita APENAS:
+1) <<<HERA_PHASE:pesquisa>>> com JSON mercado_icp válido
+2) <<<HERA_COMPETITORS>>> com no mínimo 3 players reais do mercado
+3) <<<END>>> após cada bloco`;
+  }
+
   return `Duas pesquisas OBRIGATÓRIAS e distintas:
 
 A) ICP (cliente B2B): dores, desejos e linguagem de **${operation.nicho}** que CONTRATAM agência de marketing.
@@ -42,7 +60,7 @@ A) ICP (cliente B2B): dores, desejos e linguagem de **${operation.nicho}** que C
 
 B) Concorrência do OPERADOR: outras **AGÊNCIAS ou consultorias** que vendem marketing para o mesmo nicho B2B.
    HERA_COMPETITORS = somente agências/consultorias. PROIBIDO listar clientes finais do ICP ou players do mercado do produto do ICP.
-   ticket_estimado = retainer que a agência concorrente cobra do cliente B2B (referência: ${operation.ticket_alvo}) — NÃO o preço do produto/serviço que o ICP vende ao consumidor final.
+   ticket_estimado = retainer que a agência concorrente cobra do cliente B2B (referência: ${operation.ticket_alvo}).
 
 Use no mínimo 6 buscas distintas (3 para ICP + 3 para agências).
 Ao final, emita APENAS:
@@ -53,7 +71,7 @@ Ao final, emita APENAS:
 
 /**
  * Contexto B2B injetado em todo prompt do worker.
- * ICP e concorrência vêm exclusivamente do briefing (Fase 0).
+ * Ramifica entre agência de marketing e SaaS B2B.
  */
 export function buildOperadorB2BContext(
   operation: Operation,
@@ -66,7 +84,34 @@ export function buildOperadorB2BContext(
     ? `\n## Perfil interno do operador (para comparar com concorrentes)\n${formatOperadorPerfil(perfil)}\n`
     : "";
 
-  return `## MODELO B2B — LEIA ANTES DE TUDO
+  if (isSaasB2B(operation)) {
+    return `## MODELO SaaS B2B — LEIA ANTES DE TUDO
+
+Você estrutura a operação de uma **EMPRESA DE SOFTWARE / PLATAFORMA B2B** (operador), NÃO uma agência de marketing.
+
+| Papel | Quem é nesta operação |
+|-------|----------------------|
+| Operador (SaaS) | ${operadorNome} — ${operation.posicionamento} |
+| ICP (empresas compradoras) | ${operation.nicho} |
+| Concorrência (HERA_COMPETITORS) | Outras **plataformas/soluções SaaS** que competem pelo mesmo ICP |
+| Ticket-alvo | ${operation.ticket_alvo} — valor que o **ICP paga pelo software** (assinatura/contrato) |
+
+**ICP:** pesquise dores de **${operation.nicho}** ao contratar software (compliance, integração, ciclo de compra, ROI, churn de fornecedor anterior).
+
+**HERA_COMPETITORS:** pesquise **plataformas e produtos concorrentes** no mesmo espaço de solução. NÃO liste agências de marketing nem confunda o ICP com concorrente.
+
+**Go-to-market:** foque em modelo de negócio para **atrair e converter empresas** (demand gen B2B, outbound, conteúdo para decisores, parcerias).
+
+**Compliance:** ${operation.restricoes}
+
+## Seeds de concorrentes indicados pelo operador
+${formatSeedsForPrompt(parseSeeds(operation.concorrentes_seeds))}
+
+Pesquise e enriqueça CADA seed. Inclua em HERA_COMPETITORS com dados completos. Busque players adicionais além das seeds.
+${perfilBlock}`;
+  }
+
+  return `## MODELO AGÊNCIA B2B — LEIA ANTES DE TUDO
 
 Você estrutura a operação de uma **AGÊNCIA DE MARKETING** (operador), não do negócio do cliente final.
 
@@ -81,7 +126,7 @@ Você estrutura a operação de uma **AGÊNCIA DE MARKETING** (operador), não d
 
 **HERA_COMPETITORS:** pesquise **agências/consultorias** que atendem o mesmo ICP. Nunca liste o ICP nem empresas do mercado do produto do ICP como concorrente do operador.
 
-**Compliance:** respeite integralmente as restrições do briefing em toda copy gerada.
+**Compliance:** ${operation.restricoes}
 
 ## Concorrentes indicados manualmente pelo operador
 ${formatSeedsForPrompt(parseSeeds(operation.concorrentes_seeds))}

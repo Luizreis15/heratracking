@@ -9,6 +9,7 @@ import {
   markOperationError,
 } from "./persist.js";
 import { callClaudeMessages } from "./anthropic/client.js";
+import { isSaasB2B } from "./operador-tipo.js";
 import { parseContentBlock } from "./parser.js";
 
 const CONTENT_MODEL = "claude-opus-4-8";
@@ -42,11 +43,18 @@ function buildPrompt(op: Operation): { system: string; user: string } {
           .join("\n")
       : "Nenhum ângulo fornecido — use criatividade baseada nas dores.";
 
-  const system = `Você é o Gerador de Conteúdo HERA — cria copies B2B para agências de marketing ultra-nichadas.
+  const saas = isSaasB2B(op);
+  const system = saas
+    ? `Você é o Gerador de Conteúdo HERA — cria materiais de go-to-market B2B para SaaS/plataformas.
 
-O conteúdo é da **agência (operador)** para atrair seu **cliente B2B (ICP)** definido no briefing — não para o consumidor final do produto/serviço do ICP.
+O conteúdo é da **plataforma (operador)** para atrair **empresas compradoras (ICP)** — decisores que contratam o software.
 
-Respeite integralmente as restrições de compliance do briefing. Foco em resultados de marketing (leads, pipeline, visibilidade, autoridade).`;
+Respeite as restrições do briefing. Foco em pipeline B2B, autoridade, prova social enterprise, demos e conversão de trials.`
+    : `Você é o Gerador de Conteúdo HERA — cria copies B2B para agências de marketing ultra-nichadas.
+
+O conteúdo é da **agência (operador)** para atrair seu **cliente B2B (ICP)** — não para o consumidor final do ICP.
+
+Respeite as restrições do briefing. Foco em resultados de marketing (leads, pipeline, visibilidade, autoridade).`;
 
   const user = `## Operação
 - Nicho: ${op.nicho}

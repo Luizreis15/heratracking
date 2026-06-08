@@ -67,7 +67,7 @@ export function PhaseBoard({
         <KpiCard
           label="Análise"
           value="Perfil interno"
-          href={`/operations/${operationId}/hera-dg`}
+          href={`/operations/${operationId}/analise`}
         />
         <KpiCard
           label="Operação"

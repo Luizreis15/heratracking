@@ -4,6 +4,7 @@ import { parseSeeds } from "./concorrente-seeds.js";
 export type OperationStatus = "queued" | "running" | "done" | "error";
 export type PhaseStatus = "pending" | "running" | "done" | "error";
 export type JobMode = "full" | "concorrencia" | "intel" | "comparativo" | "refine_section" | "content_generation";
+export type OperadorTipo = "agencia" | "saas_b2b";
 
 export type { ConcorrenteSeed };
 
@@ -16,6 +17,7 @@ export type Operation = {
   ticket_alvo: string;
   modelo_entrega: string;
   restricoes: string;
+  operador_tipo: OperadorTipo;
   operador_perfil: Record<string, unknown> | null;
   refine_params: { section_key: string; instruction: string } | null;
   content_params: {
@@ -59,6 +61,8 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
       if (!Array.isArray(obj.dores) || !Array.isArray(obj.formats)) return null;
       return obj as unknown as Operation["content_params"];
     })(),
+    operador_tipo:
+      row.operador_tipo === "saas_b2b" ? "saas_b2b" : "agencia",
     job_mode:
       row.job_mode === "concorrencia"
         ? "concorrencia"

@@ -390,6 +390,7 @@ export type Database = {
           modelo_entrega: string
           nicho: string
           operador_perfil: Json | null
+          operador_tipo: string
           posicionamento: string
           refine_params: Json | null
           content_params: Json | null
@@ -414,6 +415,7 @@ export type Database = {
           modelo_entrega: string
           nicho: string
           operador_perfil?: Json | null
+          operador_tipo?: string
           posicionamento: string
           refine_params?: Json | null
           content_params?: Json | null
@@ -438,6 +440,7 @@ export type Database = {
           modelo_entrega?: string
           nicho?: string
           operador_perfil?: Json | null
+          operador_tipo?: string
           posicionamento?: string
           refine_params?: Json | null
           content_params?: Json | null
