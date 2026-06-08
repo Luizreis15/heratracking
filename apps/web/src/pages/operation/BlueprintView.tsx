@@ -1,18 +1,66 @@
-import { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { ChevronDown, FileText } from "lucide-react";
-import { JsonTree } from "@/components/JsonTree";
-import { BLUEPRINT_SECTIONS } from "@/lib/blueprint-sections";
+import { FileText } from "lucide-react";
+import { SectionShell } from "@/components/blueprint/SectionShell";
+import { MercadoIcpSection } from "@/components/blueprint/MercadoIcpSection";
+import { OfertaEscadaSection } from "@/components/blueprint/OfertaEscadaSection";
+import { ComercialSection } from "@/components/blueprint/ComercialSection";
+import { PosicionamentoSection } from "@/components/blueprint/PosicionamentoSection";
+import { TrafegoFunilSection } from "@/components/blueprint/TrafegoFunilSection";
+import { ChecklistSection } from "@/components/blueprint/ChecklistSection";
+import { HipotesesSection } from "@/components/blueprint/HipotesesSection";
+import type { Json } from "@/types/index";
 import type { OperationContext } from "./operation-context";
 
-export function BlueprintView() {
-  const { operation, sections } = useOutletContext<OperationContext>();
-  const filledCount = BLUEPRINT_SECTIONS.filter((s) => sections[s.key] != null).length;
-  const [openKey, setOpenKey] = useState<string | null>(
-    BLUEPRINT_SECTIONS.find((s) => sections[s.key] != null)?.key ?? null,
-  );
+type SectionDef = {
+  key: string;
+  label: string;
+  render: (data: Json, operationId: string) => React.ReactNode;
+};
 
-  if (filledCount === 0) {
+const SECTION_DEFS: SectionDef[] = [
+  {
+    key: "mercado_icp",
+    label: "Mercado + ICP",
+    render: (data) => <MercadoIcpSection data={data} />,
+  },
+  {
+    key: "oferta_escada",
+    label: "Oferta / Escada de Valor",
+    render: (data) => <OfertaEscadaSection data={data} />,
+  },
+  {
+    key: "comercial",
+    label: "Processo Comercial",
+    render: (data) => <ComercialSection data={data} />,
+  },
+  {
+    key: "posicionamento",
+    label: "Posicionamento Digital",
+    render: (data) => <PosicionamentoSection data={data} />,
+  },
+  {
+    key: "trafego_funil",
+    label: "Tráfego + Funil",
+    render: (data) => <TrafegoFunilSection data={data} />,
+  },
+  {
+    key: "checklist",
+    label: "Checklist de Implementação",
+    render: (data, opId) => <ChecklistSection data={data} operationId={opId} />,
+  },
+  {
+    key: "hipoteses",
+    label: "Hipóteses a Validar",
+    render: (data, opId) => <HipotesesSection data={data} operationId={opId} />,
+  },
+];
+
+export function BlueprintView() {
+  const { operation, sections, operationId } = useOutletContext<OperationContext>();
+
+  const filledSections = SECTION_DEFS.filter((s) => sections[s.key] != null);
+
+  if (filledSections.length === 0) {
     return (
       <EmptyDeliverable
         title="Blueprint ainda não disponível"
@@ -26,43 +74,38 @@ export function BlueprintView() {
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-6 max-w-4xl">
+      {/* Header */}
       <div>
         <p className="hera-label mb-1">Entregável</p>
         <h1 className="font-serif text-2xl font-semibold text-foreground">
           Blueprint Operacional Mestre
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {filledCount} de {BLUEPRINT_SECTIONS.length} seções preenchidas
+          {filledSections.length} de {SECTION_DEFS.length} seções •{" "}
+          <span className="text-primary">
+            Clique em Ajustar em qualquer seção para refinar com IA
+          </span>
         </p>
       </div>
 
-      <div className="space-y-2">
-        {BLUEPRINT_SECTIONS.map((section, i) => {
-          const content = sections[section.key];
-          if (content == null) return null;
-          const isOpen = openKey === section.key;
+      {/* Seções */}
+      <div className="space-y-3">
+        {SECTION_DEFS.map((def, i) => {
+          const data = sections[def.key] as Json | undefined;
+          if (data == null) return null;
+
+          const isFirst = i === 0;
+
           return (
-            <div key={section.key} className="hera-card overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setOpenKey(isOpen ? null : section.key)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-accent/40 transition-colors"
-              >
-                <span className="text-xs text-primary font-mono w-5">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className="flex-1 text-sm font-medium text-foreground">{section.label}</span>
-                <ChevronDown
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-              {isOpen && (
-                <div className="px-4 pb-4 border-t border-border pt-3">
-                  <JsonTree value={content} />
-                </div>
-              )}
-            </div>
+            <SectionShell
+              key={def.key}
+              num={i + 1}
+              label={def.label}
+              defaultOpen={isFirst}
+            >
+              {def.render(data, operationId)}
+            </SectionShell>
           );
         })}
       </div>
