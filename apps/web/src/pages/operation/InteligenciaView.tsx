@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Loader2, Radar, RefreshCw } from "lucide-react";
+import { ExternalLink, Loader2, Radar, RefreshCw, Clock } from "lucide-react";
 import { MetaPremiumPanel } from "@/components/operation/MetaPremiumPanel";
 import { supabase } from "@/lib/supabase";
 import { useIntelEvents } from "@/hooks/useIntelEvents";
+import { useIntelBadge } from "@/hooks/useIntelBadge";
 import {
   INTEL_EVENT_LABELS,
   formatIntelDate,
@@ -12,6 +13,13 @@ import {
 } from "@/lib/intel-events";
 import type { IntelEvent } from "@/types/index";
 import type { OperationContext } from "./operation-context";
+
+const SCAN_OPTIONS = [
+  { value: 0, label: "Desativado" },
+  { value: 12, label: "A cada 12 horas" },
+  { value: 24, label: "Diário (24 h)" },
+  { value: 48, label: "A cada 2 dias" },
+] as const;
 
 const FILTERS = ["todos", "post", "landing", "criativo", "oferta", "outro"] as const;
 
@@ -30,6 +38,13 @@ export function InteligenciaView() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("todos");
   const [competitorFilter, setCompetitorFilter] = useState<string>("todos");
   const [scanning, setScanning] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+
+  // Mark all events as read when this view mounts
+  const { markRead } = useIntelBadge(operationId);
+  useEffect(() => {
+    markRead();
+  }, [markRead]);
 
   const isBusy = busy || scanning;
 
@@ -78,6 +93,16 @@ export function InteligenciaView() {
     void queryClient.invalidateQueries({ queryKey: ["intel_events", operationId] });
   }
 
+  async function handleAutoScanChange(hours: number) {
+    setSavingConfig(true);
+    await supabase
+      .from("operations")
+      .update({ intel_scan_hours: hours })
+      .eq("id", operationId);
+    setSavingConfig(false);
+    void queryClient.invalidateQueries({ queryKey: ["operation", operationId] });
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -122,6 +147,35 @@ export function InteligenciaView() {
       </div>
 
       <MetaPremiumPanel />
+
+      {/* Auto-scan config */}
+      <div className="hera-card px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Varredura automática</p>
+            <p className="text-[11px] text-muted-foreground">
+              O worker enfileira o scan automaticamente quando o intervalo passa.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {savingConfig && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+          <select
+            value={operation.intel_scan_hours ?? 0}
+            onChange={(e) => void handleAutoScanChange(Number(e.target.value))}
+            disabled={savingConfig}
+            className="text-sm bg-background border border-input text-foreground rounded-md px-3 py-1.5
+                       focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 cursor-pointer"
+          >
+            {SCAN_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {operation.last_intel_scan_at && (
         <p className="text-xs text-muted-foreground">

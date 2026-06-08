@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { Outlet, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
 import { useOperationMetrics } from "@/hooks/useOperationMetrics";
+import { PageSkeleton } from "@/components/ui/Skeleton";
 import { supabase } from "@/lib/supabase";
 import type { Blueprint, Competitor, Operation, PhaseEvent } from "@/types/index";
 import type { Json } from "@/types/index";
@@ -42,6 +42,14 @@ export function OperationLayout() {
         "postgres_changes",
         { event: "*", schema: "public", table: "competitors", filter: `operation_id=eq.${id}` },
         () => void queryClient.invalidateQueries({ queryKey: ["competitors", id] }),
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "intel_events", filter: `operation_id=eq.${id}` },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["intel_events", id] });
+          void queryClient.invalidateQueries({ queryKey: ["intel_badge", id] });
+        },
       )
       .subscribe();
 
@@ -128,11 +136,7 @@ export function OperationLayout() {
   });
 
   if (opLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   if (!operation || !id) {

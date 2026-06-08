@@ -384,6 +384,7 @@ export type Database = {
           error: string | null
           finished_at: string | null
           id: string
+          intel_scan_hours: number
           job_mode: string
           last_intel_scan_at: string | null
           modelo_entrega: string
@@ -407,6 +408,7 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
+          intel_scan_hours?: number
           job_mode?: string
           last_intel_scan_at?: string | null
           modelo_entrega: string
@@ -430,6 +432,7 @@ export type Database = {
           error?: string | null
           finished_at?: string | null
           id?: string
+          intel_scan_hours?: number
           job_mode?: string
           last_intel_scan_at?: string | null
           modelo_entrega?: string
