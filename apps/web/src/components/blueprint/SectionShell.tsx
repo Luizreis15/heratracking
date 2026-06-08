@@ -5,6 +5,8 @@ type Props = {
   num: number;
   label: string;
   defaultOpen?: boolean;
+  /** When true, content is always shown regardless of toggle state (used for print) */
+  forceOpen?: boolean;
   children: ReactNode;
   /** E2: recebe instrução e submete job de refinamento */
   onRefine?: (instruction: string) => Promise<void>;
@@ -15,6 +17,7 @@ export function SectionShell({
   num,
   label,
   defaultOpen = false,
+  forceOpen = false,
   children,
   onRefine,
   isRefining,
@@ -113,7 +116,7 @@ export function SectionShell({
       )}
 
       {/* ── Content ── */}
-      {open && (
+      {(open || forceOpen) && (
         <div className="px-5 pb-6 pt-2 border-t border-border/40">
           {children}
         </div>
