@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Loader2, Clock, ChevronRight } from "lucide-react";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { StatusBadge, PhaseProgressDots } from "@/components/ui/StatusBadge";
@@ -76,10 +77,7 @@ export function DashboardPage() {
           </div>
 
           {opsLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground py-8">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span className="text-sm">Carregando operações...</span>
-            </div>
+            <DashboardSkeleton />
           ) : operations.length === 0 ? (
             <EmptyState onNew={() => navigate("/operations/new")} />
           ) : (

@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/layout/AppShell";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthPage } from "@/pages/AuthPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { NewOperationPage } from "@/pages/NewOperationPage";
@@ -17,6 +18,7 @@ import { ContentHubView } from "@/pages/operation/ContentHubView";
 export default function App() {
   return (
     <AuthProvider>
+      <ErrorBoundary>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
         <Route
@@ -30,16 +32,17 @@ export default function App() {
           <Route path="/operations/new" element={<NewOperationPage />} />
           <Route path="/operations/:id" element={<OperationLayout />}>
             <Route index element={<BoardView />} />
-            <Route path="blueprint" element={<BlueprintView />} />
-            <Route path="concorrencia" element={<ConcorrenciaView />} />
-            <Route path="hera-dg" element={<HeraDgView />} />
-            <Route path="operacao" element={<OperacaoView />} />
-            <Route path="inteligencia" element={<InteligenciaView />} />
-            <Route path="conteudo" element={<ContentHubView />} />
+            <Route path="blueprint" element={<ErrorBoundary><BlueprintView /></ErrorBoundary>} />
+            <Route path="concorrencia" element={<ErrorBoundary><ConcorrenciaView /></ErrorBoundary>} />
+            <Route path="hera-dg" element={<ErrorBoundary><HeraDgView /></ErrorBoundary>} />
+            <Route path="operacao" element={<ErrorBoundary><OperacaoView /></ErrorBoundary>} />
+            <Route path="inteligencia" element={<ErrorBoundary><InteligenciaView /></ErrorBoundary>} />
+            <Route path="conteudo" element={<ErrorBoundary><ContentHubView /></ErrorBoundary>} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </AuthProvider>
   );
 }

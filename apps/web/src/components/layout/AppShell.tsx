@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import {
   LayoutGrid,
@@ -10,17 +11,33 @@ import {
   Radar,
   BarChart3,
   PenLine,
+  Menu,
+  X,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { useIntelBadge } from "@/hooks/useIntelBadge";
 import type { Operation } from "@/types/index";
 
 export function AppShell() {
   const { user, workspace, isSuperAdmin, signOut } = useAuth();
   const location = useLocation();
   const { id: operationId } = useParams();
-  const isOperationRoute = location.pathname.startsWith("/operations/") && operationId && operationId !== "new";
+  const isOperationRoute =
+    location.pathname.startsWith("/operations/") &&
+    operationId &&
+    operationId !== "new";
+  const { count: intelBadgeCount } = useIntelBadge(
+    isOperationRoute ? operationId : undefined,
+  );
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar on route change (mobile nav tap)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const { data: operation } = useQuery<Operation | null>({
     queryKey: ["operation", operationId],
@@ -38,7 +55,23 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="hera-sidebar w-60 shrink-0 flex flex-col">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — fixed on mobile, static on desktop */}
+      <aside
+        className={[
+          "hera-sidebar w-60 shrink-0 flex flex-col",
+          "fixed inset-y-0 left-0 z-40 transition-transform duration-200",
+          "md:static md:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+        ].join(" ")}
+      >
         <div className="px-5 py-6 border-b border-border">
           <NavLink to="/" className="block group">
             <p className="font-serif text-2xl font-semibold text-foreground leading-none tracking-tight">
@@ -49,11 +82,15 @@ export function AppShell() {
             </p>
           </NavLink>
           {workspace && (
-            <p className="text-[11px] text-muted-foreground mt-3 truncate">{workspace.name}</p>
+            <p className="text-[11px] text-muted-foreground mt-3 truncate">
+              {workspace.name}
+            </p>
           )}
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav
+          className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"
+        >
           {!isOperationRoute ? (
             <>
               <p className="hera-label px-3 mb-2">Workspace</p>
@@ -88,7 +125,11 @@ export function AppShell() {
               <NavItem to={`/operations/${operationId}/operacao`} icon={BarChart3}>
                 Operação
               </NavItem>
-              <NavItem to={`/operations/${operationId}/inteligencia`} icon={Radar}>
+              <NavItem
+                to={`/operations/${operationId}/inteligencia`}
+                icon={Radar}
+                badge={intelBadgeCount}
+              >
                 Inteligência
               </NavItem>
               <NavItem to={`/operations/${operationId}/conteudo`} icon={PenLine}>
@@ -116,7 +157,32 @@ export function AppShell() {
         </div>
       </aside>
 
+      {/* Main content */}
       <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile topbar */}
+        <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-background sticky top-0 z-20 shrink-0">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((o) => !o)}
+            className="hera-btn-ghost p-2 -ml-2"
+            aria-label="Abrir menu"
+          >
+            {sidebarOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </button>
+          <p className="font-serif text-xl font-semibold text-foreground leading-none">
+            Hera
+          </p>
+          {operation?.nicho && (
+            <p className="text-xs text-muted-foreground truncate">
+              — {operation.nicho}
+            </p>
+          )}
+        </div>
+
         <Outlet />
       </div>
     </div>
@@ -128,12 +194,14 @@ function NavItem({
   icon: Icon,
   children,
   end,
+  badge = 0,
   className = "",
 }: {
   to: string;
   icon: React.ComponentType<{ className?: string }>;
   children: React.ReactNode;
   end?: boolean;
+  badge?: number;
   className?: string;
 }) {
   return (
@@ -149,7 +217,10 @@ function NavItem({
       }
     >
       <Icon className="h-4 w-4 shrink-0" />
-      {children}
+      <span className="flex-1 truncate">{children}</span>
+      {badge > 0 && (
+        <span className="ml-auto h-2 w-2 rounded-full bg-primary shrink-0" />
+      )}
     </NavLink>
   );
 }
