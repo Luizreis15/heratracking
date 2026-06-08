@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Env } from "../env.js";
+import { SERVICE_CLIENT_OPTIONS } from "../supabase.js";
 
 export type PremiumMetaConnection = {
   clientId: string;
@@ -20,9 +21,11 @@ export function premiumSupabaseConfigured(env: Env): boolean {
 }
 
 export function createPremiumClient(env: Env): SupabaseClient {
-  return createClient(env.HERA_PREMIUM_SUPABASE_URL!, env.HERA_PREMIUM_SERVICE_ROLE_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return createClient(
+    env.HERA_PREMIUM_SUPABASE_URL!,
+    env.HERA_PREMIUM_SERVICE_ROLE_KEY!,
+    SERVICE_CLIENT_OPTIONS,
+  );
 }
 
 export async function loadPremiumMetaConnection(

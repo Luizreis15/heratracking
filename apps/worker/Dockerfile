@@ -1,7 +1,7 @@
 # HERA Arquiteto worker — deploy Railway/Contabo
 # Root directory no Railway: apps/worker
 
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json ./
@@ -14,7 +14,7 @@ COPY .claude ./.claude
 
 RUN npm run build
 
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
