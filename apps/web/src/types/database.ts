@@ -350,6 +350,7 @@ export type Database = {
           last_intel_scan_at: string | null
           modelo_entrega: string
           nicho: string
+          operador_perfil: Json | null
           posicionamento: string
           restricoes: string
           status: string
@@ -369,6 +370,7 @@ export type Database = {
           last_intel_scan_at?: string | null
           modelo_entrega: string
           nicho: string
+          operador_perfil?: Json | null
           posicionamento: string
           restricoes?: string
           status?: string
@@ -388,6 +390,7 @@ export type Database = {
           last_intel_scan_at?: string | null
           modelo_entrega?: string
           nicho?: string
+          operador_perfil?: Json | null
           posicionamento?: string
           restricoes?: string
           status?: string

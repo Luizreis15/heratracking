@@ -3,7 +3,7 @@ import { Link, useOutletContext } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMethodProfile } from "@/hooks/useMethodProfile";
+import { parseOperadorFromOperation } from "@/lib/operador-profile";
 import { ComparisonMatrix } from "@/components/operation/ComparisonMatrix";
 import { supabase } from "@/lib/supabase";
 import {
@@ -19,7 +19,10 @@ import type { OperationContext } from "./operation-context";
 export function ConcorrenciaView() {
   const { operation, competitors } = useOutletContext<OperationContext>();
   const { workspace } = useAuth();
-  const { operador } = useMethodProfile(workspace?.id);
+  const operador = parseOperadorFromOperation(
+    operation,
+    workspace?.name?.trim() || "Minha empresa",
+  );
   const existingSeeds = parseSeedsFromJson(operation.concorrentes_seeds);
   const busy = operation.status === "queued" || operation.status === "running";
 
@@ -36,7 +39,7 @@ export function ConcorrenciaView() {
             to={`/operations/${operation.id}/hera-dg`}
             className="text-primary hover:underline"
           >
-            Comparar com Hera DG →
+            Comparar com minha empresa →
           </Link>
         </p>
       </div>
@@ -72,7 +75,7 @@ export function ConcorrenciaView() {
               to={`/operations/${operation.id}/hera-dg`}
               className="text-xs text-primary hover:underline"
             >
-              Editar perfil Hera DG
+              Editar minha empresa
             </Link>
           </div>
           <ComparisonMatrix operador={operador} competitors={competitors} />

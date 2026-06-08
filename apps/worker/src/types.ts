@@ -16,6 +16,7 @@ export type Operation = {
   ticket_alvo: string;
   modelo_entrega: string;
   restricoes: string;
+  operador_perfil: Record<string, unknown> | null;
   concorrentes_seeds: ConcorrenteSeed[];
   job_mode: JobMode;
   status: OperationStatus;
@@ -30,6 +31,12 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
   return {
     ...(row as unknown as Operation),
     concorrentes_seeds: parseSeeds(row.concorrentes_seeds),
+    operador_perfil:
+      row.operador_perfil &&
+      typeof row.operador_perfil === "object" &&
+      !Array.isArray(row.operador_perfil)
+        ? (row.operador_perfil as Record<string, unknown>)
+        : null,
     job_mode:
       row.job_mode === "concorrencia"
         ? "concorrencia"

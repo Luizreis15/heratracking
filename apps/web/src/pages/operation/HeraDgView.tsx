@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { Building2, Check, Loader2, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMethodProfile } from "@/hooks/useMethodProfile";
+import { useOperationOperador } from "@/hooks/useOperationOperador";
 import { ComparativoStrategic } from "@/components/operation/ComparativoStrategic";
 import { ComparisonMatrix } from "@/components/operation/ComparisonMatrix";
 import { ComparisonTable } from "@/components/operation/ComparisonTable";
 import {
+  parseOperadorFromOperation,
   profileFromOperation,
   type OperadorProfile,
 } from "@/lib/operador-profile";
@@ -19,19 +20,29 @@ export function HeraDgView() {
     operation.status === "running" ||
     operation.job_mode === "comparativo";
   const { workspace } = useAuth();
-  const { operador, saveOperador, isSaving, isLoading, saveError } = useMethodProfile(
-    workspace?.id,
+  const empresaFallback = workspace?.name?.trim() || "Minha empresa";
+
+  const { saveOperador, isSaving, saveError } = useOperationOperador(
+    operation,
+    empresaFallback,
   );
 
-  const [form, setForm] = useState<OperadorProfile>(operador);
+  const [form, setForm] = useState<OperadorProfile>(() =>
+    parseOperadorFromOperation(operation, empresaFallback),
+  );
   const [saved, setSaved] = useState(false);
   const [selectedCompetitorId, setSelectedCompetitorId] = useState<string | null>(
     competitors[0]?.id ?? null,
   );
+  const loadedForRef = useRef<string | null>(null);
 
+  // Só recarrega o form ao trocar de operação ou após salvar no banco — evita apagar o que o usuário digita
   useEffect(() => {
-    setForm(operador);
-  }, [operador]);
+    const key = `${operationId}:${operation.operador_perfil ? "saved" : "new"}`;
+    if (loadedForRef.current === key) return;
+    loadedForRef.current = key;
+    setForm(parseOperadorFromOperation(operation, empresaFallback));
+  }, [operationId, operation.operador_perfil, operation, empresaFallback]);
 
   useEffect(() => {
     if (competitors.length > 0 && !selectedCompetitorId) {
@@ -47,29 +58,25 @@ export function HeraDgView() {
   async function handleSave() {
     try {
       await saveOperador(form);
+      loadedForRef.current = `${operationId}:saved`;
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       const msg =
-        err instanceof Error
-          ? err.message
-          : "Erro ao salvar perfil da agência.";
+        err instanceof Error ? err.message : "Erro ao salvar perfil da empresa.";
       alert(msg);
     }
   }
 
   function importFromBriefing() {
-    setForm((prev) => ({ ...prev, ...profileFromOperation(operation) }));
+    setForm((prev) => ({
+      ...prev,
+      ...profileFromOperation(operation, prev.nome || empresaFallback),
+    }));
     setSaved(false);
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  const displayName = form.nome.trim() || empresaFallback;
 
   return (
     <div className="space-y-8">
@@ -78,10 +85,10 @@ export function HeraDgView() {
           <p className="hera-label mb-1">Perfil interno</p>
           <h1 className="font-serif text-2xl font-semibold text-foreground flex items-center gap-2">
             <Building2 className="h-6 w-6 text-primary" />
-            Hera DG
+            {displayName}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Como a agência se posiciona — base para comparar com concorrentes nesta operação.
+            Como sua empresa se posiciona nesta operação — base para comparar com concorrentes.
           </p>
         </div>
         <div className="flex gap-2">
@@ -111,26 +118,19 @@ export function HeraDgView() {
         </div>
       )}
 
-      {!workspace && (
-        <div className="hera-card border-hera-running/30 px-4 py-3 text-sm text-muted-foreground max-w-5xl">
-          Workspace ainda não carregou — aguarde o bootstrap ou faça login novamente.
-        </div>
-      )}
-
       <div className="grid lg:grid-cols-2 gap-6 max-w-5xl">
         <ProfileForm form={form} onChange={update} />
-        <PreviewCard profile={form} />
+        <PreviewCard profile={form} fallbackName={empresaFallback} />
       </div>
 
       <div className="space-y-6">
         <div>
           <p className="hera-label mb-1">Comparativo</p>
           <h2 className="font-serif text-xl font-semibold text-foreground">
-            Matriz — Nós vs Todas
+            Matriz — {displayName} vs concorrentes
           </h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Hera DG fixa à esquerda; todas as agências concorrentes em colunas. Oculte colunas ou
-            clique no nome para ver o detalhe 1:1.
+            Sua empresa fixa à esquerda; agências concorrentes em colunas.
           </p>
         </div>
         <ComparisonMatrix
@@ -176,10 +176,11 @@ function ProfileForm({
     <div className="hera-card p-5 space-y-4">
       <p className="text-sm font-semibold text-foreground">Editar perfil</p>
 
-      <Field label="Nome da agência">
+      <Field label="Nome da empresa">
         <input
           className={inputCls}
           value={form.nome}
+          placeholder="Ex.: Minha empresa, Hera DG, Digital Hera..."
           onChange={(e) => onChange("nome", e.target.value)}
         />
       </Field>
@@ -196,7 +197,7 @@ function ProfileForm({
         <Field label="Instagram">
           <input
             className={inputCls}
-            placeholder="instagram.com/heradg"
+            placeholder="instagram.com/suaempresa"
             value={form.instagram ?? ""}
             onChange={(e) => onChange("instagram", e.target.value)}
           />
@@ -206,6 +207,7 @@ function ProfileForm({
       <Field label="Ticket (retainer)">
         <input
           className={inputCls}
+          placeholder="Ex.: R$ 3.000/mês"
           value={form.ticket ?? ""}
           onChange={(e) => onChange("ticket", e.target.value)}
         />
@@ -214,6 +216,7 @@ function ProfileForm({
       <Field label="Modelo de entrega">
         <input
           className={inputCls}
+          placeholder="Ex.: Gestão de tráfego + assessoria"
           value={form.modelo_entrega ?? ""}
           onChange={(e) => onChange("modelo_entrega", e.target.value)}
         />
@@ -273,13 +276,21 @@ function ProfileForm({
   );
 }
 
-function PreviewCard({ profile }: { profile: OperadorProfile }) {
+function PreviewCard({
+  profile,
+  fallbackName,
+}: {
+  profile: OperadorProfile;
+  fallbackName: string;
+}) {
+  const name = profile.nome.trim() || fallbackName;
+
   return (
     <div className="hera-card p-5 border-primary/25 space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="hera-label">Nós</p>
-          <h3 className="font-serif text-xl font-semibold text-foreground mt-1">{profile.nome}</h3>
+          <h3 className="font-serif text-xl font-semibold text-foreground mt-1">{name}</h3>
         </div>
         {profile.ticket && (
           <span className="text-xs text-primary font-medium text-right max-w-[40%] leading-snug">

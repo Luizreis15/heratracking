@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import {
@@ -26,7 +27,10 @@ export function useMethodProfile(workspaceId: string | undefined) {
     enabled: !!workspaceId,
   });
 
-  const operador = parseOperadorProfile(query.data?.extensoes ?? {});
+  const operador = useMemo(
+    () => parseOperadorProfile(query.data?.extensoes ?? {}),
+    [query.data?.extensoes, query.data?.updated_at],
+  );
 
   const saveMutation = useMutation({
     mutationFn: async (perfil: OperadorProfile) => {

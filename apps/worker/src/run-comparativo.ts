@@ -28,13 +28,21 @@ async function loadMethodProfile(
   return data as MethodProfile | null;
 }
 
-function operadorFromProfile(profile: MethodProfile | null): Record<string, unknown> {
+function operadorFromOperation(
+  operation: Operation,
+  profile: MethodProfile | null,
+): Record<string, unknown> {
+  const opPerfil = operation.operador_perfil;
+  if (opPerfil && typeof opPerfil === "object" && !Array.isArray(opPerfil)) {
+    return opPerfil as Record<string, unknown>;
+  }
   const ext = profile?.extensoes ?? {};
   const perfil = (ext as Record<string, unknown>).perfil;
   if (perfil && typeof perfil === "object") return perfil as Record<string, unknown>;
   return {
-    ticket: profile?.extensoes ? undefined : null,
-    posicionamento: profile?.posicionamento,
+    nome: "Minha empresa",
+    posicionamento: profile?.posicionamento ?? operation.posicionamento,
+    ticket: operation.ticket_alvo,
   };
 }
 
@@ -81,7 +89,7 @@ export async function runComparativo(
     const prompt = buildComparativoPrompt({
       operation: claimed,
       profile,
-      operador: operadorFromProfile(profile),
+      operador: operadorFromOperation(claimed, profile),
       competitors,
       intelEvents: intelEvents ?? [],
     });

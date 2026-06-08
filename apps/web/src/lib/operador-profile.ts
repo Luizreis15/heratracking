@@ -17,47 +17,70 @@ export type OperadorProfile = {
 
 const PERFIL_KEY = "perfil";
 
+/** Valores sugeridos no bootstrap do workspace — não forçados por operação */
 export const DEFAULT_OPERADOR_PROFILE: OperadorProfile = {
-  nome: "Hera DG",
-  url: "https://digitalheramarketing.com.br",
+  nome: "Minha empresa",
+  url: "",
   instagram: "",
-  oferta: "Gestão de tráfego + assessoria estratégica para clínicas implantodontistas",
-  ticket: "R$ 2.500 – R$ 4.000/mês",
-  posicionamento:
-    "Agência especializada em captação previsível de pacientes de implante e reabilitação oral, com compliance CFO/CFM",
-  modelo_entrega: "Gestão de tráfego + assessoria estratégica",
-  pontos_fortes:
-    "Nicho ultra-focado, operação enxuta, linguagem que converte sem prometer resultado, compliance odonto",
-  pontos_fracos: "Marca ainda em consolidação vs players com mais prova social",
-  angulos_criativos: [
-    "agenda cheia de implantes",
-    "captação previsível",
-    "marketing com compliance",
-  ],
-  notas: "Perfil interno da agência — base para comparação com concorrentes.",
+  oferta: "",
+  ticket: "",
+  posicionamento: "",
+  modelo_entrega: "",
+  pontos_fortes: "",
+  pontos_fracos: "",
+  angulos_criativos: [],
+  notas: "",
 };
 
+export function parseOperadorProfileJson(raw: Json | null | undefined): OperadorProfile | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const p = raw as Record<string, Json>;
+  return {
+    nome: typeof p.nome === "string" ? p.nome : "",
+    url: str(p.url),
+    instagram: str(p.instagram),
+    oferta: str(p.oferta),
+    ticket: str(p.ticket),
+    posicionamento: str(p.posicionamento),
+    modelo_entrega: str(p.modelo_entrega),
+    pontos_fortes: str(p.pontos_fortes),
+    pontos_fracos: str(p.pontos_fracos),
+    angulos_criativos: arr(p.angulos_criativos) ?? [],
+    notas: str(p.notas),
+  };
+}
+
+/** Legado: perfil no method_profiles.extensoes.perfil */
 export function parseOperadorProfile(extensoes: Json): OperadorProfile {
   if (!extensoes || typeof extensoes !== "object" || Array.isArray(extensoes)) {
     return { ...DEFAULT_OPERADOR_PROFILE };
   }
   const raw = (extensoes as Record<string, Json>)[PERFIL_KEY];
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { ...DEFAULT_OPERADOR_PROFILE };
-  }
-  const p = raw as Record<string, Json>;
+  const parsed = parseOperadorProfileJson(raw);
+  if (!parsed) return { ...DEFAULT_OPERADOR_PROFILE };
   return {
-    nome: typeof p.nome === "string" && p.nome.trim() ? p.nome : DEFAULT_OPERADOR_PROFILE.nome,
-    url: str(p.url),
-    instagram: str(p.instagram),
-    oferta: str(p.oferta) ?? DEFAULT_OPERADOR_PROFILE.oferta,
-    ticket: str(p.ticket) ?? DEFAULT_OPERADOR_PROFILE.ticket,
-    posicionamento: str(p.posicionamento) ?? DEFAULT_OPERADOR_PROFILE.posicionamento,
-    modelo_entrega: str(p.modelo_entrega) ?? DEFAULT_OPERADOR_PROFILE.modelo_entrega,
-    pontos_fortes: str(p.pontos_fortes) ?? DEFAULT_OPERADOR_PROFILE.pontos_fortes,
-    pontos_fracos: str(p.pontos_fracos) ?? DEFAULT_OPERADOR_PROFILE.pontos_fracos,
-    angulos_criativos: arr(p.angulos_criativos) ?? DEFAULT_OPERADOR_PROFILE.angulos_criativos,
-    notas: str(p.notas),
+    ...DEFAULT_OPERADOR_PROFILE,
+    ...parsed,
+    nome: parsed.nome.trim() || DEFAULT_OPERADOR_PROFILE.nome,
+  };
+}
+
+/** Perfil desta operação — coluna operations.operador_perfil */
+export function parseOperadorFromOperation(
+  operation: Operation | null | undefined,
+  empresaFallback = "Minha empresa",
+): OperadorProfile {
+  const saved = parseOperadorProfileJson(operation?.operador_perfil ?? null);
+  if (saved) {
+    return {
+      ...emptyOperador(empresaFallback),
+      ...saved,
+      nome: saved.nome.trim() || empresaFallback,
+    };
+  }
+  return {
+    ...emptyOperador(empresaFallback),
+    ...profileFromOperation(operation, empresaFallback),
   };
 }
 
@@ -73,15 +96,23 @@ export function mergeOperadorIntoExtensoes(
   return base;
 }
 
-export function profileFromOperation(op: Operation): OperadorProfile {
+export function profileFromOperation(
+  op: Operation | null | undefined,
+  empresaNome = "Minha empresa",
+): OperadorProfile {
+  if (!op) return emptyOperador(empresaNome);
   return {
-    nome: "Hera DG",
-    oferta: op.modelo_entrega,
-    ticket: op.ticket_alvo,
-    posicionamento: op.posicionamento,
-    modelo_entrega: op.modelo_entrega,
+    nome: empresaNome,
+    oferta: op.modelo_entrega || undefined,
+    ticket: op.ticket_alvo || undefined,
+    posicionamento: op.posicionamento || undefined,
+    modelo_entrega: op.modelo_entrega || undefined,
     notas: "Importado do briefing desta operação.",
   };
+}
+
+function emptyOperador(nome: string): OperadorProfile {
+  return { ...DEFAULT_OPERADOR_PROFILE, nome, angulos_criativos: [] };
 }
 
 function str(v: Json | undefined): string | undefined {
