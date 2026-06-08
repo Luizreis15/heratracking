@@ -7,6 +7,7 @@ import { SectionShell } from "@/components/blueprint/SectionShell";
 import { MercadoIcpSection } from "@/components/blueprint/MercadoIcpSection";
 import { OfertaEscadaSection } from "@/components/blueprint/OfertaEscadaSection";
 import { ComercialSection } from "@/components/blueprint/ComercialSection";
+import { SpinPanel } from "@/components/blueprint/SpinPanel";
 import { PosicionamentoSection } from "@/components/blueprint/PosicionamentoSection";
 import { TrafegoFunilSection } from "@/components/blueprint/TrafegoFunilSection";
 import { ChecklistSection } from "@/components/blueprint/ChecklistSection";
@@ -18,7 +19,7 @@ import type { OperationContext } from "./operation-context";
 type SectionDef = {
   key: string;
   label: string;
-  render: (data: Json, operationId: string) => React.ReactNode;
+  render: (data: Json, operationId: string, spinGuide?: Json | null) => React.ReactNode;
 };
 
 const SECTION_DEFS: SectionDef[] = [
@@ -35,7 +36,12 @@ const SECTION_DEFS: SectionDef[] = [
   {
     key: "comercial",
     label: "Processo Comercial",
-    render: (data) => <ComercialSection data={data} />,
+    render: (data, _opId, spinGuide) => (
+      <>
+        <ComercialSection data={data} />
+        <SpinPanel spinGuide={spinGuide ?? null} />
+      </>
+    ),
   },
   {
     key: "posicionamento",
@@ -60,7 +66,7 @@ const SECTION_DEFS: SectionDef[] = [
 ];
 
 export function BlueprintView() {
-  const { operation, sections, operationId } = useOutletContext<OperationContext>();
+  const { operation, sections, operationId, blueprint } = useOutletContext<OperationContext>();
   const queryClient = useQueryClient();
 
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
@@ -105,6 +111,7 @@ export function BlueprintView() {
       sections as Record<string, unknown>,
       operation.nicho,
       operation.posicionamento,
+      spinGuide,
     );
     downloadMarkdown(md, operation.nicho);
   }, [sections, operation.nicho, operation.posicionamento]);
@@ -131,6 +138,7 @@ export function BlueprintView() {
     [operationId, queryClient],
   );
 
+  const spinGuide = blueprint?.spin_guide ?? null;
   const filledSections = SECTION_DEFS.filter((s) => sections[s.key] != null);
 
   if (filledSections.length === 0) {
@@ -235,7 +243,7 @@ export function BlueprintView() {
               onRefine={makeRefineHandler(def.key)}
               isRefining={isSectionRefining}
             >
-              {def.render(data, operationId)}
+              {def.render(data, operationId, def.key === "comercial" ? spinGuide : undefined)}
             </SectionShell>
           );
         })}

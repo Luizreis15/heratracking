@@ -278,12 +278,39 @@ function serializeHipoteses(data: unknown): string {
   return items.map((i) => `- ${i}`).join("\n") + "\n";
 }
 
+// ── SPIN serializer ───────────────────────────────────────────────────────────
+
+function serializeSpinGuide(spin: unknown): string {
+  if (!spin || typeof spin !== "object" || Array.isArray(spin)) return "";
+  const obj = spin as Record<string, unknown>;
+
+  const LABELS = [
+    ["situacao", "S — SITUAÇÃO — Entendendo o contexto do lead"],
+    ["problema", "P — PROBLEMA — Expondo a dor real"],
+    ["implicacao", "I — IMPLICAÇÃO — Ampliando a urgência"],
+    ["necessidade", "N — NECESSIDADE — Antecipando a solução"],
+  ] as const;
+
+  let md = "";
+  LABELS.forEach(([key, label]) => {
+    const items = obj[key];
+    if (!Array.isArray(items) || !items.length) return;
+    md += h3(label);
+    items.forEach((q, i) => {
+      if (typeof q === "string") md += `${i + 1}. ${q}\n`;
+    });
+    md += "\n";
+  });
+  return md;
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
 export function blueprintToMarkdown(
   sections: Record<string, unknown>,
   nicho: string,
   posicionamento: string,
+  spinGuide?: unknown,
 ): string {
   const date = new Date().toLocaleDateString("pt-BR", {
     day: "2-digit",
@@ -301,10 +328,16 @@ export function blueprintToMarkdown(
     key: string;
     label: string;
     fn: (data: unknown) => string;
+    afterFn?: () => string;
   }> = [
     { key: "mercado_icp", label: "Mercado + ICP", fn: serializeMercadoIcp },
     { key: "oferta_escada", label: "Oferta / Escada de Valor", fn: serializeOfertaEscada },
-    { key: "comercial", label: "Processo Comercial", fn: serializeComercial },
+    {
+      key: "comercial",
+      label: "Processo Comercial",
+      fn: serializeComercial,
+      afterFn: spinGuide ? () => serializeSpinGuide(spinGuide) : undefined,
+    },
     { key: "posicionamento", label: "Posicionamento Digital", fn: serializePosicionamento },
     { key: "trafego_funil", label: "Tráfego + Funil", fn: serializeTrafegoFunil },
     { key: "checklist", label: "Checklist de Implementação", fn: serializeChecklist },
@@ -316,6 +349,13 @@ export function blueprintToMarkdown(
     if (data == null) return;
     md += h2(i + 1, s.label);
     md += s.fn(data);
+    if (s.afterFn) {
+      const extra = s.afterFn();
+      if (extra) {
+        md += "\n### SPIN Selling Guide\n\n";
+        md += extra;
+      }
+    }
     md += "\n---\n";
   });
 

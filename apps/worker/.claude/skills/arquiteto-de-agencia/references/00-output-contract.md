@@ -74,6 +74,49 @@ Emita um bloco delimitado exatamente neste formato (sem espaços extras nas tags
 }
 ```
 
+## Bloco SPIN Selling (fase comercial)
+
+Imediatamente **após** o bloco `<<<HERA_PHASE:comercial>>>`, emita o guia SPIN:
+
+```
+<<<HERA_SPIN>>>
+{
+  "situacao": [
+    "Pergunta de situação 1 específica do nicho",
+    "Pergunta de situação 2",
+    "Pergunta de situação 3",
+    "Pergunta de situação 4"
+  ],
+  "problema": [
+    "Pergunta de problema 1 específica da dor do ICP",
+    "Pergunta de problema 2",
+    "Pergunta de problema 3",
+    "Pergunta de problema 4"
+  ],
+  "implicacao": [
+    "Pergunta de implicação 1 que amplia a dor",
+    "Pergunta de implicação 2",
+    "Pergunta de implicação 3",
+    "Pergunta de implicação 4"
+  ],
+  "necessidade": [
+    "Pergunta de necessidade-solução 1 que antecipa o benefício",
+    "Pergunta de necessidade-solução 2",
+    "Pergunta de necessidade-solução 3",
+    "Pergunta de necessidade-solução 4"
+  ]
+}
+<<<END>>>
+```
+
+### Regras do SPIN
+
+- As perguntas devem ser **específicas do nicho** descrito no briefing — nunca genéricas.
+- Use terminologia e contexto real do ICP (ex: para clínicas de implante dental, mencione "taxa de conversão de pacientes", "custo por lead qualificado", "sazonalidade de procedimentos").
+- As perguntas de **Implicação** devem ampliar a dor e criar urgência.
+- As perguntas de **Necessidade** devem naturalmente antecipar a solução da agência.
+- Mínimo 4 perguntas por quadrante, máximo 6.
+
 **posicionamento**:
 ```json
 {

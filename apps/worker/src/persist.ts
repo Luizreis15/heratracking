@@ -8,7 +8,7 @@ import {
 import type { IntelEventInput } from "./intel-types.js";
 import type { BlueprintSections, CompetitorInput, JobMode, MethodProfile, Operation } from "./types.js";
 import { normalizeOperation } from "./types.js";
-import type { ParsedPhase } from "./parser.js";
+import type { ParsedPhase, SpinGuide } from "./parser.js";
 
 export async function claimOperation(
   supabase: SupabaseClient,
@@ -206,6 +206,22 @@ export async function persistPhase(
   if (upcoming) {
     await setPhaseStatus(supabase, operationId, upcoming, "running");
   }
+}
+
+export async function persistSpinGuide(
+  supabase: SupabaseClient,
+  operationId: string,
+  spin: SpinGuide,
+): Promise<void> {
+  const bp = await getOrCreateBlueprint(supabase, operationId);
+
+  const { error } = await supabase
+    .from("blueprints")
+    .update({ spin_guide: spin, updated_at: new Date().toISOString() })
+    .eq("id", bp.id);
+
+  if (error) throw new Error(`Falha ao gravar spin_guide: ${error.message}`);
+  console.log("[worker] SPIN guide gravado no blueprint");
 }
 
 export async function persistCompetitors(

@@ -122,6 +122,9 @@ export function PhaseBoard({
               </p>
             </div>
           </div>
+          {operation.current_phase === "comercial" && operation.status === "running" && (
+            <SpinMiniCard />
+          )}
         </>
       )}
 
@@ -347,6 +350,33 @@ function PhaseStatusIcon({
     return <Loader2 className="h-4 w-4 text-hera-running animate-spin" />;
   if (status === "error") return <AlertCircle className="h-4 w-4 text-destructive" />;
   return <Circle className="h-3.5 w-3.5 text-muted-foreground/25" />;
+}
+
+function SpinMiniCard() {
+  return (
+    <details className="hera-card px-4 py-3 border-amber-500/20 group">
+      <summary className="cursor-pointer flex items-center gap-2 list-none">
+        <span className="text-sm font-semibold text-amber-400 hera-mono">SPIN</span>
+        <span className="text-xs text-muted-foreground flex-1">
+          O agente está estruturando as perguntas do closer para este nicho.
+        </span>
+        <span className="text-[10px] text-muted-foreground group-open:hidden">▼ ver método</span>
+        <span className="text-[10px] text-muted-foreground hidden group-open:inline">▲ fechar</span>
+      </summary>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+        {(["S — Situação", "P — Problema", "I — Implicação", "N — Necessidade"] as const).map(
+          (label, i) => (
+            <div
+              key={i}
+              className="hera-mono bg-accent/30 rounded px-2 py-1.5 text-muted-foreground"
+            >
+              {label}
+            </div>
+          ),
+        )}
+      </div>
+    </details>
+  );
 }
 
 export function countDonePhases(phaseMap: Map<string, PhaseEvent>): number {

@@ -5,6 +5,7 @@ import { PHASE_ORDER } from "./constants.js";
 
 const PHASE_BLOCK_RE = /<<<HERA_PHASE:(\w+)>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 const COMPETITORS_BLOCK_RE = /<<<HERA_COMPETITORS>>>\s*([\s\S]*?)\s*<<<END>>>/g;
+const SPIN_BLOCK_RE = /<<<HERA_SPIN>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 const INTEL_BLOCK_RE = /<<<HERA_INTEL>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 const COMPARATIVO_BLOCK_RE = /<<<HERA_COMPARATIVO>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 const CONTENT_BLOCK_RE = /<<<HERA_CONTENT>>>\s*([\s\S]*?)\s*<<<END>>>/g;
@@ -74,6 +75,47 @@ export function parseCompetitorsBlock(
     );
   } catch {
     console.warn("[worker] JSON inválido no bloco HERA_COMPETITORS");
+    return null;
+  }
+}
+
+export type SpinGuide = {
+  situacao: string[];
+  problema: string[];
+  implicacao: string[];
+  necessidade: string[];
+};
+
+export function parseSpinBlock(
+  text: string,
+  alreadyProcessed: boolean,
+): SpinGuide | null {
+  if (alreadyProcessed) return null;
+
+  SPIN_BLOCK_RE.lastIndex = 0;
+  const match = SPIN_BLOCK_RE.exec(text);
+  if (!match?.[1]) return null;
+
+  try {
+    const parsed = JSON.parse(match[1].trim()) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const obj = parsed as Record<string, unknown>;
+    if (
+      !Array.isArray(obj.situacao) ||
+      !Array.isArray(obj.problema) ||
+      !Array.isArray(obj.implicacao) ||
+      !Array.isArray(obj.necessidade)
+    ) {
+      return null;
+    }
+    return {
+      situacao: (obj.situacao as unknown[]).filter((s): s is string => typeof s === "string"),
+      problema: (obj.problema as unknown[]).filter((s): s is string => typeof s === "string"),
+      implicacao: (obj.implicacao as unknown[]).filter((s): s is string => typeof s === "string"),
+      necessidade: (obj.necessidade as unknown[]).filter((s): s is string => typeof s === "string"),
+    };
+  } catch {
+    console.warn("[worker] JSON inválido no bloco HERA_SPIN");
     return null;
   }
 }
