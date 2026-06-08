@@ -9,6 +9,7 @@ import {
   Building2,
   Radar,
   BarChart3,
+  PenLine,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
@@ -89,6 +90,9 @@ export function AppShell() {
               </NavItem>
               <NavItem to={`/operations/${operationId}/inteligencia`} icon={Radar}>
                 Inteligência
+              </NavItem>
+              <NavItem to={`/operations/${operationId}/conteudo`} icon={PenLine}>
+                Conteúdo
               </NavItem>
             </>
           )}

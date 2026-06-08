@@ -3,7 +3,7 @@ import { parseSeeds } from "./concorrente-seeds.js";
 
 export type OperationStatus = "queued" | "running" | "done" | "error";
 export type PhaseStatus = "pending" | "running" | "done" | "error";
-export type JobMode = "full" | "concorrencia" | "intel" | "comparativo" | "refine_section";
+export type JobMode = "full" | "concorrencia" | "intel" | "comparativo" | "refine_section" | "content_generation";
 
 export type { ConcorrenteSeed };
 
@@ -18,6 +18,11 @@ export type Operation = {
   restricoes: string;
   operador_perfil: Record<string, unknown> | null;
   refine_params: { section_key: string; instruction: string } | null;
+  content_params: {
+    dores: string[];
+    formats: string[];
+    angulos?: Array<{ gancho?: string; corpo?: string; cta?: string; titulo?: string }>;
+  } | null;
   concorrentes_seeds: ConcorrenteSeed[];
   job_mode: JobMode;
   status: OperationStatus;
@@ -46,6 +51,13 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
       typeof (row.refine_params as Record<string, unknown>).instruction === "string"
         ? (row.refine_params as { section_key: string; instruction: string })
         : null,
+    content_params: (() => {
+      const p = row.content_params;
+      if (!p || typeof p !== "object" || Array.isArray(p)) return null;
+      const obj = p as Record<string, unknown>;
+      if (!Array.isArray(obj.dores) || !Array.isArray(obj.formats)) return null;
+      return obj as unknown as Operation["content_params"];
+    })(),
     job_mode:
       row.job_mode === "concorrencia"
         ? "concorrencia"
@@ -55,7 +67,9 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
             ? "comparativo"
             : row.job_mode === "refine_section"
               ? "refine_section"
-              : "full",
+              : row.job_mode === "content_generation"
+                ? "content_generation"
+                : "full",
   };
 }
 

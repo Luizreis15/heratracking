@@ -39,6 +39,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      content_items: {
+        Row: {
+          id: string
+          operation_id: string
+          workspace_id: string
+          format: string
+          dor: string | null
+          content: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          operation_id: string
+          workspace_id: string
+          format: string
+          dor?: string | null
+          content?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          operation_id?: string
+          workspace_id?: string
+          format?: string
+          dor?: string | null
+          content?: Json
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_items_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blueprints: {
         Row: {
           id: string
@@ -353,6 +391,7 @@ export type Database = {
           operador_perfil: Json | null
           posicionamento: string
           refine_params: Json | null
+          content_params: Json | null
           restricoes: string
           status: string
           ticket_alvo: string
@@ -374,6 +413,7 @@ export type Database = {
           operador_perfil?: Json | null
           posicionamento: string
           refine_params?: Json | null
+          content_params?: Json | null
           restricoes?: string
           status?: string
           ticket_alvo: string
@@ -395,6 +435,7 @@ export type Database = {
           operador_perfil?: Json | null
           posicionamento?: string
           refine_params?: Json | null
+          content_params?: Json | null
           restricoes?: string
           status?: string
           ticket_alvo?: string

@@ -7,6 +7,7 @@ const PHASE_BLOCK_RE = /<<<HERA_PHASE:(\w+)>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 const COMPETITORS_BLOCK_RE = /<<<HERA_COMPETITORS>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 const INTEL_BLOCK_RE = /<<<HERA_INTEL>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 const COMPARATIVO_BLOCK_RE = /<<<HERA_COMPARATIVO>>>\s*([\s\S]*?)\s*<<<END>>>/g;
+const CONTENT_BLOCK_RE = /<<<HERA_CONTENT>>>\s*([\s\S]*?)\s*<<<END>>>/g;
 
 const INTEL_TYPES = new Set(["post", "landing", "criativo", "oferta", "outro"]);
 
@@ -115,6 +116,32 @@ export function parseComparativoBlock(text: string): Record<string, unknown> | n
     return parsed;
   } catch {
     console.warn("[worker] JSON inválido no bloco HERA_COMPARATIVO");
+    return null;
+  }
+}
+
+export type ContentItem = {
+  format: string;
+  dor?: string;
+  content: Record<string, unknown>;
+};
+
+export function parseContentBlock(text: string): ContentItem[] | null {
+  CONTENT_BLOCK_RE.lastIndex = 0;
+  const match = CONTENT_BLOCK_RE.exec(text);
+  if (!match?.[1]) return null;
+  try {
+    const parsed = JSON.parse(match[1].trim()) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter(
+      (item): item is ContentItem =>
+        !!item &&
+        typeof item === "object" &&
+        typeof (item as Record<string, unknown>).format === "string" &&
+        !!(item as Record<string, unknown>).content,
+    );
+  } catch {
+    console.warn("[worker] JSON inválido no bloco HERA_CONTENT");
     return null;
   }
 }

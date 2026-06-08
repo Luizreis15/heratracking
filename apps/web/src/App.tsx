@@ -12,6 +12,7 @@ import { ConcorrenciaView } from "@/pages/operation/ConcorrenciaView";
 import { HeraDgView } from "@/pages/operation/HeraDgView";
 import { OperacaoView } from "@/pages/operation/OperacaoView";
 import { InteligenciaView } from "@/pages/operation/InteligenciaView";
+import { ContentHubView } from "@/pages/operation/ContentHubView";
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="hera-dg" element={<HeraDgView />} />
             <Route path="operacao" element={<OperacaoView />} />
             <Route path="inteligencia" element={<InteligenciaView />} />
+            <Route path="conteudo" element={<ContentHubView />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
