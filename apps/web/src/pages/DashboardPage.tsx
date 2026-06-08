@@ -73,18 +73,21 @@ export function DashboardPage() {
             <div className="hera-cockpit-hero p-6 lg:p-8">
               <div className="flex flex-wrap items-start justify-between gap-6">
                 <div>
-                  <p className="hera-label mb-2">Command center</p>
-                  <h1 className="font-serif text-3xl lg:text-4xl font-semibold text-foreground">
+                  <p className="hera-label mb-1.5 flex items-center gap-1.5">
+                    <span className="inline-block h-1 w-4 rounded-full bg-hera-gold/70" />
+                    Command Center
+                  </p>
+                  <h1 className="font-sans text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
                     Operações
                   </h1>
-                  <p className="text-base text-muted-foreground mt-2">{workspace.name}</p>
+                  <p className="text-sm text-muted-foreground mt-1.5 font-medium">{workspace.name}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => navigate("/operations/new")}
-                  className="hera-btn-primary text-base px-6 py-3"
+                  className="hera-btn-primary text-sm px-5 py-2.5"
                 >
-                  <Plus className="h-5 w-5" />
+                  <Plus className="h-4 w-4" />
                   Nova operação
                 </button>
               </div>
@@ -236,8 +239,8 @@ function OperationCard({
               </span>
             )}
             {operation.cost_usd != null && Number(operation.cost_usd) > 0 && (
-              <span className="hera-mono text-muted-foreground">
-                IA ${Number(operation.cost_usd).toFixed(2)}
+              <span className="hera-mono text-[11px] text-muted-foreground/70 tabular-nums">
+                ${Number(operation.cost_usd).toFixed(2)}
               </span>
             )}
             <span className="text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ml-auto">
@@ -280,11 +283,11 @@ function StatTile({
       )}
       style={{ animation: "reveal-up 0.4s ease-out both", animationDelay: `${delay * 0.07}s` }}
     >
-      <div className="flex items-center justify-between">
-        <p className="hera-label">{label}</p>
-        <Icon className="h-4 w-4 text-primary/70" />
+      <div className="flex items-start justify-between gap-2">
+        <p className="hera-mono text-[2.75rem] font-bold text-foreground leading-none">{animated}</p>
+        <Icon className={["h-4 w-4 mt-1 shrink-0", variant === "done" ? "text-hera-done/70" : variant === "alert" ? "text-hera-alert/70" : "text-primary/60"].join(" ")} />
       </div>
-      <p className="hera-mono text-4xl font-bold text-foreground mt-1">{animated}</p>
+      <p className="hera-label mt-2">{label}</p>
     </div>
   );
 }
@@ -294,7 +297,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
     <div className="hera-cockpit-hero p-16 text-center space-y-5">
       <Clock className="h-14 w-14 text-primary/40 mx-auto" />
       <div className="space-y-2">
-        <h3 className="font-serif text-2xl font-semibold text-foreground">
+        <h3 className="font-sans text-2xl font-bold text-foreground tracking-tight">
           Nenhuma operação ainda
         </h3>
         <p className="text-base text-muted-foreground max-w-md mx-auto">

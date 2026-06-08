@@ -72,19 +72,27 @@ export function AppShell() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full",
         ].join(" ")}
       >
-        <div className="px-5 py-6 border-b border-border">
+        <div className="px-5 py-5 border-b border-border">
           <NavLink to="/" className="block group">
-            <p className="font-serif text-2xl font-semibold text-foreground leading-none tracking-tight">
-              Hera
-            </p>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary mt-1">
-              Tracking
-            </p>
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-md bg-gradient-to-br from-hera-gold to-hera-gold/60 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(191,155,77,0.4)]">
+                <span className="text-[11px] font-bold text-hera-navy-deep leading-none">H</span>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground leading-none tracking-tight">
+                  HERA
+                </p>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-primary/80 mt-0.5">
+                  Tracking
+                </p>
+              </div>
+            </div>
           </NavLink>
           {workspace && (
-            <p className="text-[11px] text-muted-foreground mt-3 truncate">
-              {workspace.name}
-            </p>
+            <div className="mt-3 flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-hera-done shrink-0" />
+              <p className="text-[11px] text-muted-foreground truncate">{workspace.name}</p>
+            </div>
           )}
         </div>
 
@@ -97,17 +105,19 @@ export function AppShell() {
               <NavItem to="/" icon={LayoutGrid} end>
                 Operações
               </NavItem>
+              <div className="hera-nav-separator" />
               <NavItem to="/operations/new" icon={Plus}>
                 Nova operação
               </NavItem>
             </>
           ) : (
             <>
-              <NavItem to="/" icon={LayoutGrid} end className="mb-3">
-                ← Todas as operações
+              <NavItem to="/" icon={LayoutGrid} end className="mb-1">
+                Todas as operações
               </NavItem>
-              <p className="hera-label px-3 mb-2">Esta operação</p>
-              <p className="px-3 text-sm text-foreground font-medium truncate mb-3 leading-snug">
+              <div className="hera-nav-separator" />
+              <p className="hera-label px-3 mt-3 mb-1">Operação ativa</p>
+              <p className="px-3 text-xs text-foreground/80 font-medium truncate mb-3 leading-snug">
                 {operation?.nicho ?? "Carregando..."}
               </p>
               <NavItem to={`/operations/${operationId}`} icon={Kanban} end>
@@ -173,12 +183,15 @@ export function AppShell() {
               <Menu className="h-5 w-5" />
             )}
           </button>
-          <p className="font-serif text-xl font-semibold text-foreground leading-none">
-            Hera
-          </p>
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded bg-gradient-to-br from-hera-gold to-hera-gold/60 flex items-center justify-center shrink-0 shadow-[0_0_8px_rgba(191,155,77,0.35)]">
+              <span className="text-[10px] font-bold text-hera-navy-deep leading-none">H</span>
+            </div>
+            <span className="text-sm font-bold text-foreground tracking-tight">HERA</span>
+          </div>
           {operation?.nicho && (
             <p className="text-xs text-muted-foreground truncate">
-              — {operation.nicho}
+              / {operation.nicho}
             </p>
           )}
         </div>

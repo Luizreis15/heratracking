@@ -6,7 +6,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        serif: ['"Cormorant Garamond"', "Georgia", "serif"],
+        serif: ['"Space Grotesk"', '"Inter Tight"', "system-ui", "sans-serif"],
+        display: ['"Space Grotesk"', '"Inter Tight"', "system-ui", "sans-serif"],
         sans: ['"Inter Tight"', "Inter", "system-ui", "sans-serif"],
       },
       borderRadius: {

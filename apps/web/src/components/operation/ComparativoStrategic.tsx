@@ -84,8 +84,7 @@ export function ComparativoStrategic({ operationId, competitorCount, busy }: Pro
             Comparativo inteligente
           </h2>
           <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-            Claude sintetiza perfil do operador + concorrentes + intel recente. Perplexity e Meta
-            alimentam os dados; Claude interpreta.
+            Motor de análise processa perfil do operador, concorrentes mapeados e inteligência recente — gaps, battle cards e recomendações priorizadas.
           </p>
         </div>
         <button
@@ -107,7 +106,7 @@ export function ComparativoStrategic({ operationId, competitorCount, busy }: Pro
         <div className="hera-card px-4 py-3 flex items-center gap-3 border-hera-running/30">
           <Loader2 className="h-5 w-5 text-hera-running animate-spin shrink-0" />
           <p className="text-sm text-foreground">
-            Claude analisando {competitorCount} concorrentes — 2–5 minutos.
+            Analisando {competitorCount} concorrente{competitorCount !== 1 ? "s" : ""} — 2–5 minutos.
           </p>
         </div>
       )}
@@ -129,7 +128,7 @@ export function ComparativoStrategic({ operationId, competitorCount, busy }: Pro
             {report?.generated_at && (
               <p className="text-[10px] text-muted-foreground mt-3 flex items-center gap-1">
                 <RefreshCw className="h-3 w-3" />
-                {new Date(report.generated_at).toLocaleString("pt-BR")} · Claude
+                Gerado em {new Date(report.generated_at).toLocaleString("pt-BR")}
               </p>
             )}
           </div>

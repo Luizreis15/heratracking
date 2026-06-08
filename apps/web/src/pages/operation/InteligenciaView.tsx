@@ -275,6 +275,20 @@ export function InteligenciaView() {
   );
 }
 
+const FONTE_LABELS: Record<string, { label: string; isMeta: boolean }> = {
+  meta_ad_library: { label: "Meta · Biblioteca de Anúncios", isMeta: true },
+  meta_graph:      { label: "Meta · Social", isMeta: true },
+  web:             { label: "Web", isMeta: false },
+  perplexity:      { label: "Pesquisa Web", isMeta: false },
+};
+
+function fonteLabel(fonte: string): { label: string; isMeta: boolean } {
+  if (FONTE_LABELS[fonte]) return FONTE_LABELS[fonte]!;
+  if (fonte.startsWith("meta_graph:")) return { label: `Meta · ${fonte.replace("meta_graph:", "").trim() || "Social"}`, isMeta: true };
+  if (fonte.startsWith("meta_")) return { label: "Meta", isMeta: true };
+  return { label: "Pesquisa Web", isMeta: false };
+}
+
 function IntelEventCard({ event: e }: { event: IntelEvent }) {
   const typeCfg = INTEL_EVENT_LABELS[e.event_type];
 
@@ -311,21 +325,22 @@ function IntelEventCard({ event: e }: { event: IntelEvent }) {
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
           >
-            Ver fonte <ExternalLink className="h-3 w-3" />
+            Ver <ExternalLink className="h-3 w-3" />
           </a>
         )}
-        {e.fonte && (
-          <span
-            className={[
-              "text-[10px] px-1.5 py-0.5 rounded",
-              e.fonte.startsWith("meta_")
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground",
-            ].join(" ")}
-          >
-            {e.fonte.replace("meta_graph:", "Meta · ").replace("meta_ad_library", "Ad Library")}
-          </span>
-        )}
+        {e.fonte && (() => {
+          const { label, isMeta } = fonteLabel(e.fonte);
+          return (
+            <span
+              className={[
+                "text-[10px] px-1.5 py-0.5 rounded",
+                isMeta ? "bg-primary/15 text-primary" : "text-muted-foreground",
+              ].join(" ")}
+            >
+              {label}
+            </span>
+          );
+        })()}
       </div>
     </div>
   );
