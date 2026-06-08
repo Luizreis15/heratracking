@@ -240,7 +240,7 @@
   }
 
   .hera-phase-pill--running {
-    @apply phase-running bg-hera-cyan/8;
+    @apply phase-running bg-hera-cyan/10;
   }
 
   .hera-phase-pill--pending {
