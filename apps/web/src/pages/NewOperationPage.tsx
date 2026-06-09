@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Building2, Layers, Zap } from "lucide-react";
+import { ArrowLeft, Building2, Layers, Zap, Plus } from "lucide-react";
 import { BRIEFING_TEMPLATES, getBriefingTemplate } from "@/lib/briefing-templates";
 import { briefingFormCopy } from "@/lib/briefing-form-config";
 import {
@@ -47,7 +47,25 @@ const BLANK_DEFAULTS: FormData = {
   concorrentes_manuais: "",
 };
 
-type WizardStep = "tipo" | "briefing";
+type WizardStep = "tipo" | "descricao" | "briefing";
+
+const GUIDE_PROMPTS_SAAS = [
+  "O que o seu produto faz?",
+  "Como funciona por dentro?",
+  "Quem compra e por quê?",
+  "Qual o seu maior diferencial?",
+  "Como você cobra / modelo de receita?",
+  "Qual o objetivo de crescimento?",
+];
+
+const GUIDE_PROMPTS_AGENCIA = [
+  "O que sua agência entrega?",
+  "Para quem você trabalha?",
+  "Como é o processo de serviço?",
+  "Qual o seu maior diferencial?",
+  "Qual o modelo de contrato?",
+  "Qual o objetivo de crescimento?",
+];
 
 export function NewOperationPage() {
   const { workspace, user } = useAuth();
@@ -58,10 +76,15 @@ export function NewOperationPage() {
 
   const copy = operadorTipo ? briefingFormCopy(operadorTipo) : null;
 
+  const [descricaoLivre, setDescricaoLivre] = useState("");
+  const descricaoRef = useRef<HTMLTextAreaElement>(null);
+
   const {
     register,
     handleSubmit,
     reset,
+    getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -75,11 +98,38 @@ export function NewOperationPage() {
   function selectTipo(tipo: OperadorTipo) {
     setOperadorTipo(tipo);
     setTemplateId("blank");
+    setDescricaoLivre("");
     reset({
       ...BLANK_DEFAULTS,
       restricoes: DEFAULT_RESTRICOES,
       modelo_entrega: briefingFormCopy(tipo).modelos[0] ?? "",
     });
+    setStep("descricao");
+  }
+
+  function appendGuidePrompt(prompt: string) {
+    const el = descricaoRef.current;
+    const sep = descricaoLivre.trim() ? "\n\n" : "";
+    const next = descricaoLivre + sep + prompt + " ";
+    setDescricaoLivre(next);
+    el?.focus();
+    setTimeout(() => {
+      if (el) el.selectionStart = el.selectionEnd = next.length;
+    }, 0);
+  }
+
+  function handleDescricaoContinuar() {
+    const trimmed = descricaoLivre.trim();
+    if (trimmed) {
+      const current = getValues();
+      if (!current.nicho) {
+        const firstLine = trimmed.split(/[.\n!?]/)[0]?.trim() ?? trimmed;
+        setValue("nicho", firstLine.substring(0, 200));
+      }
+      if (!current.posicionamento) {
+        setValue("posicionamento", trimmed.substring(0, 1000));
+      }
+    }
     setStep("briefing");
   }
 
@@ -109,6 +159,7 @@ export function NewOperationPage() {
     const operadorPerfil: Record<string, unknown> = {
       tipo: operadorTipo,
       nome: data.operador_nome.trim(),
+      ...(descricaoLivre.trim() ? { descricao_livre: descricaoLivre.trim() } : {}),
       ...(perfilFromTemplate
         ? {
             oferta: perfilFromTemplate.oferta,
@@ -161,7 +212,13 @@ export function NewOperationPage() {
         <div className="flex items-start gap-4">
           <button
             type="button"
-            onClick={() => (step === "briefing" ? setStep("tipo") : navigate("/"))}
+            onClick={() =>
+              step === "briefing"
+                ? setStep("descricao")
+                : step === "descricao"
+                  ? setStep("tipo")
+                  : navigate("/")
+            }
             className="hera-btn-ghost mt-1"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -172,12 +229,83 @@ export function NewOperationPage() {
             <p className="text-sm text-muted-foreground mt-1">
               {step === "tipo"
                 ? "Primeiro passo: o que você está estruturando?"
-                : copy?.pageSubtitle}
+                : step === "descricao"
+                  ? "Descreva seu negócio em linguagem livre — sem formulário."
+                  : copy?.pageSubtitle}
             </p>
           </div>
         </div>
 
-        {step === "tipo" ? (
+        {step === "descricao" && operadorTipo ? (
+          <div className="space-y-5">
+            {/* Guide prompts */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Clique para adicionar ao campo
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(operadorTipo === "saas_b2b"
+                  ? GUIDE_PROMPTS_SAAS
+                  : GUIDE_PROMPTS_AGENCIA
+                ).map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => appendGuidePrompt(prompt)}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full border border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+                  >
+                    <Plus className="h-3 w-3" />
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Free-text textarea */}
+            <div className="hera-card p-5">
+              <textarea
+                ref={descricaoRef}
+                rows={10}
+                value={descricaoLivre}
+                onChange={(e) => setDescricaoLivre(e.target.value)}
+                maxLength={3000}
+                placeholder={
+                  operadorTipo === "saas_b2b"
+                    ? "Ex.: A Veramo é uma plataforma SaaS que digitaliza o processo de homologação trabalhista, unindo três partes: o sindicato, a empresa empregadora e o funcionário desligado. O sindicato é nosso cliente — ele contrata a plataforma para oferecer o serviço de homologação online como nova fonte de receita, sem precisar do comparecimento físico do trabalhador. O processo inclui reunião gravada, assinatura digital com validade jurídica e conformidade LGPD. O diferencial é que eliminamos o deslocamento e o papel, reduzindo o tempo de uma rescisão de dias para horas..."
+                    : "Ex.: A Hera DG é uma agência de marketing especializada em clínicas de implante dentário e reabilitações orais. Trabalhamos apenas com clínicas que querem escalar o volume de casos de alto valor, com tráfego pago no Meta e Google. Nosso diferencial é o método de captação exclusivo para procedimentos premium, com copy que respeita o CFO..."
+                }
+                className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 resize-none focus:outline-none leading-relaxed"
+              />
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/40">
+                <p className="text-[11px] text-muted-foreground">
+                  {descricaoLivre.length}/3000 caracteres
+                </p>
+                <p className="text-[11px] text-muted-foreground italic">
+                  Quanto mais detalhe, melhor o Blueprint.
+                </p>
+              </div>
+            </div>
+
+            {/* CTA buttons */}
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={handleDescricaoContinuar}
+                className="w-full hera-btn-primary justify-center py-3"
+              >
+                <Zap className="h-4 w-4" />
+                Continuar para o briefing
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep("briefing")}
+                className="w-full hera-btn-ghost justify-center text-sm text-muted-foreground"
+              >
+                Pular e preencher manualmente
+              </button>
+            </div>
+          </div>
+        ) : step === "tipo" ? (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               O caminho muda conforme o tipo. Agência mapeia concorrentes de marketing; SaaS mapeia
@@ -222,6 +350,24 @@ export function NewOperationPage() {
                   Trocar tipo
                 </button>
               </div>
+
+              {descricaoLivre.trim() && (
+                <div className="mb-6 rounded-lg border border-hera-done/30 bg-hera-done/5 px-4 py-3">
+                  <p className="text-xs font-semibold text-hera-done mb-1">
+                    Contexto capturado — será enviado ao worker
+                  </p>
+                  <p className="text-xs text-foreground/70 leading-relaxed line-clamp-3">
+                    {descricaoLivre.trim()}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStep("descricao")}
+                    className="text-[11px] text-primary mt-1 hover:underline"
+                  >
+                    Editar descrição
+                  </button>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <Field
