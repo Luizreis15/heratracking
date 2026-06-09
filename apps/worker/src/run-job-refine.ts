@@ -151,9 +151,12 @@ export async function runJobRefine(
       timeoutMs: 120_000,
     });
 
+    console.log(`[worker][refine] resposta Claude (${text.length} chars):`, text.slice(0, 400));
+
     const refined = parseRefineBlock(text, section_key);
 
     if (!refined) {
+      console.error(`[worker][refine] parseRefineBlock retornou null. Texto completo:\n${text}`);
       throw new Error(
         `Bloco <<<HERA_REFINE:${section_key}>>> não encontrado ou JSON inválido na resposta`,
       );
