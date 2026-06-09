@@ -126,6 +126,7 @@ export function BlueprintLayout() {
   const makeRefineHandler = useCallback(
     (key: string) => async (instruction: string) => {
       setRefiningSection(key);
+      setRefineErrored(false);
       const { error } = await supabase
         .from("operations")
         .update({
