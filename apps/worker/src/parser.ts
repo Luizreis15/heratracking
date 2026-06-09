@@ -209,6 +209,10 @@ export function parseRefineBlock(
     }
   }
 
+  // Se o texto contém um bloco HERA_REFINE para OUTRA chave, não fazer fallback —
+  // Claude respondeu mas para a seção errada; os fallbacks pegariam o JSON errado.
+  if (/<<<HERA_REFINE:\w+>>>/.test(text)) return null;
+
   // Fallback: markdown JSON block (```json ... ```) quando Claude ignora o delimitador
   const mdMatch = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/.exec(text);
   if (mdMatch?.[1]) {
