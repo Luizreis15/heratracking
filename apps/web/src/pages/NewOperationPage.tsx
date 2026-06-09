@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowLeft, Building2, Layers, Zap, Plus } from "lucide-react";
+import { ArrowLeft, Building2, Layers, Zap, Plus, Sparkles, Loader2 } from "lucide-react";
 import { BRIEFING_TEMPLATES, getBriefingTemplate } from "@/lib/briefing-templates";
 import { briefingFormCopy } from "@/lib/briefing-form-config";
 import {
@@ -77,6 +77,9 @@ export function NewOperationPage() {
   const copy = operadorTipo ? briefingFormCopy(operadorTipo) : null;
 
   const [descricaoLivre, setDescricaoLivre] = useState("");
+  const [isParsing, setIsParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [aiPreencheu, setAiPreencheu] = useState(false);
   const descricaoRef = useRef<HTMLTextAreaElement>(null);
 
   const {
@@ -95,10 +98,44 @@ export function NewOperationPage() {
     (t) => t.id === "blank" || t.operador_tipo === operadorTipo,
   );
 
+  async function handleAnalisarComIA() {
+    if (!descricaoLivre.trim() || !operadorTipo) return;
+    setIsParsing(true);
+    setParseError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("parse-briefing", {
+        body: { descricao: descricaoLivre.trim(), tipo: operadorTipo },
+      });
+      if (error) throw new Error(error.message);
+      const parsed = data as {
+        error?: string;
+        nicho?: string;
+        posicionamento?: string;
+        ticket_alvo?: string;
+        restricoes?: string;
+        modelo_entrega?: string;
+      };
+      if (parsed.error) throw new Error(parsed.error);
+      if (parsed.nicho) setValue("nicho", parsed.nicho);
+      if (parsed.posicionamento) setValue("posicionamento", parsed.posicionamento);
+      if (parsed.ticket_alvo) setValue("ticket_alvo", parsed.ticket_alvo);
+      if (parsed.restricoes) setValue("restricoes", parsed.restricoes);
+      if (parsed.modelo_entrega) setValue("modelo_entrega", parsed.modelo_entrega);
+      setAiPreencheu(true);
+      setStep("briefing");
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : "Erro ao analisar. Tente novamente.");
+    } finally {
+      setIsParsing(false);
+    }
+  }
+
   function selectTipo(tipo: OperadorTipo) {
     setOperadorTipo(tipo);
     setTemplateId("blank");
     setDescricaoLivre("");
+    setAiPreencheu(false);
+    setParseError(null);
     reset({
       ...BLANK_DEFAULTS,
       restricoes: DEFAULT_RESTRICOES,
@@ -286,20 +323,39 @@ export function NewOperationPage() {
               </div>
             </div>
 
+            {/* Error */}
+            {parseError && (
+              <p className="text-xs text-destructive px-1">{parseError}</p>
+            )}
+
             {/* CTA buttons */}
             <div className="flex flex-col gap-2">
               <button
                 type="button"
-                onClick={handleDescricaoContinuar}
-                className="w-full hera-btn-primary justify-center py-3"
+                onClick={() => void handleAnalisarComIA()}
+                disabled={!descricaoLivre.trim() || isParsing}
+                className="w-full hera-btn-primary justify-center py-3 disabled:opacity-50"
               >
-                <Zap className="h-4 w-4" />
-                Continuar para o briefing
+                {isParsing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {isParsing ? "Analisando seu negócio..." : "Analisar com IA e preencher campos"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDescricaoContinuar}
+                disabled={isParsing}
+                className="w-full hera-btn-ghost justify-center text-sm"
+              >
+                Continuar sem IA
               </button>
               <button
                 type="button"
                 onClick={() => setStep("briefing")}
-                className="w-full hera-btn-ghost justify-center text-sm text-muted-foreground"
+                disabled={isParsing}
+                className="w-full hera-btn-ghost justify-center text-xs text-muted-foreground"
               >
                 Pular e preencher manualmente
               </button>
@@ -352,17 +408,31 @@ export function NewOperationPage() {
               </div>
 
               {descricaoLivre.trim() && (
-                <div className="mb-6 rounded-lg border border-hera-done/30 bg-hera-done/5 px-4 py-3">
-                  <p className="text-xs font-semibold text-hera-done mb-1">
-                    Contexto capturado — será enviado ao worker
+                <div
+                  className={[
+                    "mb-6 rounded-lg border px-4 py-3",
+                    aiPreencheu
+                      ? "border-hera-cyan/30 bg-hera-cyan/5"
+                      : "border-hera-done/30 bg-hera-done/5",
+                  ].join(" ")}
+                >
+                  <p
+                    className={[
+                      "text-xs font-semibold mb-1",
+                      aiPreencheu ? "text-hera-cyan" : "text-hera-done",
+                    ].join(" ")}
+                  >
+                    {aiPreencheu
+                      ? "Campos preenchidos pela IA — revise antes de enviar"
+                      : "Contexto capturado — será enviado ao worker"}
                   </p>
-                  <p className="text-xs text-foreground/70 leading-relaxed line-clamp-3">
+                  <p className="text-xs text-foreground/70 leading-relaxed line-clamp-2">
                     {descricaoLivre.trim()}
                   </p>
                   <button
                     type="button"
                     onClick={() => setStep("descricao")}
-                    className="text-[11px] text-primary mt-1 hover:underline"
+                    className="text-[11px] text-primary mt-1.5 hover:underline"
                   >
                     Editar descrição
                   </button>
