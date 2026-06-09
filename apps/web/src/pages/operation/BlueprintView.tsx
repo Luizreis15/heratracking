@@ -83,12 +83,13 @@ export function BlueprintLayout() {
   const { sectionKey } = useParams<{ sectionKey?: string }>();
 
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
-  const [refineErrored, setRefineErrored] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
   const spinGuide = blueprint?.spin_guide ?? null;
   const isAnyRefining = operation.status === "queued" || operation.status === "running";
+  // Derivado diretamente do status da operação — sem estado local para evitar race condition com Realtime
+  const refineErrored = operation.status === "error" && operation.job_mode === "refine_section";
   const filledSections = SECTION_DEFS.filter((s) => sections[s.key] != null);
   const firstKey = filledSections[0]?.key;
 
@@ -99,16 +100,14 @@ export function BlueprintLayout() {
     }
   }, [sectionKey, firstKey, operationId, navigate]);
 
-  // Clear refining state and refresh blueprint when job finishes (done or error)
+  // Limpa refiningSection e recarrega blueprint quando o job termina
   useEffect(() => {
     if (refiningSection === null) return;
-    if (operation.status === "done") {
+    if (operation.status === "done" || operation.status === "error") {
       setRefiningSection(null);
-      setRefineErrored(false);
-      void queryClient.invalidateQueries({ queryKey: ["blueprint", operationId] });
-    } else if (operation.status === "error") {
-      setRefiningSection(null);
-      setRefineErrored(true);
+      if (operation.status === "done") {
+        void queryClient.invalidateQueries({ queryKey: ["blueprint", operationId] });
+      }
     }
   }, [operation.status, refiningSection, operationId, queryClient]);
 
@@ -126,7 +125,6 @@ export function BlueprintLayout() {
   const makeRefineHandler = useCallback(
     (key: string) => async (instruction: string) => {
       setRefiningSection(key);
-      setRefineErrored(false);
       const { error } = await supabase
         .from("operations")
         .update({
