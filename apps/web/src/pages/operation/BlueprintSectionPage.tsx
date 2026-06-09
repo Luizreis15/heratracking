@@ -7,6 +7,7 @@ import type { Json } from "@/types/index";
 export function BlueprintSectionPage() {
   const { sectionKey } = useParams<{ sectionKey: string }>();
   const {
+    operation,
     sections,
     operationId,
     makeRefineHandler,
@@ -138,9 +139,12 @@ export function BlueprintSectionPage() {
           </div>
         )}
         {refineErrored && refiningSection === null && !isSectionRefining && (
-          <p className="mt-3 text-xs text-destructive">
-            O refinamento falhou. Tente uma instrução mais específica — ex.: "Substituir 'fornecedores' por 'empresa' em todo o processo comercial."
-          </p>
+          <div className="mt-3 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
+            <p className="text-xs font-semibold text-destructive mb-0.5">Refinamento falhou</p>
+            <p className="text-[11px] text-destructive/80 font-mono break-all">
+              {operation.error ?? "Erro desconhecido — veja logs do worker"}
+            </p>
+          </div>
         )}
       </div>
 
