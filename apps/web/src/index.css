@@ -123,6 +123,32 @@
   }
 }
 
+@keyframes section-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+    box-shadow: 0 0 0 0 hsl(var(--hera-done) / 0.5);
+    border-color: hsl(var(--hera-done) / 0.9);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 28px 6px hsl(var(--hera-done) / 0.25);
+    border-color: hsl(var(--hera-done) / 1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    box-shadow: 0 0 0 0 hsl(var(--hera-done) / 0);
+    border-color: hsl(var(--hera-done) / 0.25);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 /* count-up: animado via JS (requestAnimationFrame) — Fase 3 */
 
 @keyframes typewriter-cursor {
@@ -392,6 +418,30 @@
   /* Reveal escalonado (Fase 3) */
   .hera-reveal-up {
     animation: reveal-up 0.45s ease-out both;
+  }
+
+  /* Live generation — seção aparecendo */
+  .hera-section-appear {
+    animation: section-appear 1.8s ease-out both;
+  }
+
+  /* Shimmer placeholder para seção sendo gerada */
+  .hera-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--hera-card)) 0%,
+      hsl(var(--hera-cyan) / 0.12) 40%,
+      hsl(var(--hera-card)) 80%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* Fase ativa na timeline vertical */
+  .hera-phase-live {
+    border-color: hsl(var(--hera-cyan) / 0.5);
+    background: hsl(var(--hera-cyan) / 0.04);
+    box-shadow: 0 0 18px hsl(var(--hera-cyan) / 0.1);
   }
 }
 
