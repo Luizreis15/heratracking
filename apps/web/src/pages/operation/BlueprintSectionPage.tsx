@@ -12,6 +12,7 @@ export function BlueprintSectionPage() {
     makeRefineHandler,
     isAnyRefining,
     refiningSection,
+    refineErrored,
     spinGuide,
     filledSections,
   } = useOutletContext<BlueprintLayoutContext>();
@@ -135,6 +136,11 @@ export function BlueprintSectionPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
             Regenerando — aguarde...
           </div>
+        )}
+        {refineErrored && refiningSection === null && !isSectionRefining && (
+          <p className="mt-3 text-xs text-destructive">
+            O refinamento falhou. Tente uma instrução mais específica — ex.: "Substituir 'fornecedores' por 'empresa' em todo o processo comercial."
+          </p>
         )}
       </div>
 

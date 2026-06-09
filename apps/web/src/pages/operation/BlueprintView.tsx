@@ -69,6 +69,7 @@ export type BlueprintLayoutContext = OperationContext & {
   makeRefineHandler: (sectionKey: string) => (instruction: string) => Promise<void>;
   isAnyRefining: boolean;
   refiningSection: string | null;
+  refineErrored: boolean;
   spinGuide: Json | null;
   filledSections: SectionDef[];
 };
@@ -82,6 +83,7 @@ export function BlueprintLayout() {
   const { sectionKey } = useParams<{ sectionKey?: string }>();
 
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
+  const [refineErrored, setRefineErrored] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -97,11 +99,16 @@ export function BlueprintLayout() {
     }
   }, [sectionKey, firstKey, operationId, navigate]);
 
-  // Clear refining state when job finishes
+  // Clear refining state and refresh blueprint when job finishes (done or error)
   useEffect(() => {
-    if (operation.status === "done" && refiningSection !== null) {
+    if (refiningSection === null) return;
+    if (operation.status === "done") {
       setRefiningSection(null);
+      setRefineErrored(false);
       void queryClient.invalidateQueries({ queryKey: ["blueprint", operationId] });
+    } else if (operation.status === "error") {
+      setRefiningSection(null);
+      setRefineErrored(true);
     }
   }, [operation.status, refiningSection, operationId, queryClient]);
 
@@ -173,6 +180,7 @@ export function BlueprintLayout() {
     makeRefineHandler,
     isAnyRefining,
     refiningSection,
+    refineErrored,
     spinGuide,
     filledSections,
   };

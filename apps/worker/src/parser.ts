@@ -192,20 +192,48 @@ export function parseRefineBlock(
   text: string,
   sectionKey: string,
 ): Record<string, unknown> | null {
+  // Primary: delimited block <<<HERA_REFINE:key>>>...<<<END>>>
   const re = new RegExp(
     `<<<HERA_REFINE:${sectionKey}>>>\\s*([\\s\\S]*?)\\s*<<<END>>>`,
     "g",
   );
   const match = re.exec(text);
-  if (!match?.[1]) return null;
-  try {
-    const parsed = JSON.parse(match[1].trim()) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    return parsed as Record<string, unknown>;
-  } catch {
-    console.warn(`[worker] JSON inválido no bloco HERA_REFINE:${sectionKey}`);
-    return null;
+  if (match?.[1]) {
+    try {
+      const parsed = JSON.parse(match[1].trim()) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      console.warn(`[worker] JSON inválido no bloco HERA_REFINE:${sectionKey}`);
+    }
   }
+
+  // Fallback: markdown JSON block (```json ... ```) quando Claude ignora o delimitador
+  const mdMatch = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/.exec(text);
+  if (mdMatch?.[1]) {
+    try {
+      const parsed = JSON.parse(mdMatch[1].trim()) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        console.warn(`[worker] parseRefineBlock: usando fallback markdown para ${sectionKey}`);
+        return parsed as Record<string, unknown>;
+      }
+    } catch { /* ignora */ }
+  }
+
+  // Last resort: primeiro objeto JSON bruto na resposta
+  const rawMatch = /(\{[\s\S]*\})/.exec(text);
+  if (rawMatch?.[1]) {
+    try {
+      const parsed = JSON.parse(rawMatch[1].trim()) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        console.warn(`[worker] parseRefineBlock: usando fallback raw JSON para ${sectionKey}`);
+        return parsed as Record<string, unknown>;
+      }
+    } catch { /* ignora */ }
+  }
+
+  return null;
 }
 
 export function toolLogLine(toolName: string, toolInput: unknown): string {

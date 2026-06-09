@@ -208,6 +208,31 @@ export async function persistPhase(
   }
 }
 
+/**
+ * Salva os dados de uma fase no blueprint e marca a fase como "done".
+ * NÃO avança o status da fase seguinte — para uso no executor paralelo (swarm),
+ * onde o status de cada fase é gerenciado explicitamente pelo orquestrador.
+ */
+export async function persistPhaseData(
+  supabase: SupabaseClient,
+  operationId: string,
+  parsed: ParsedPhase,
+): Promise<void> {
+  const { phase, data } = parsed;
+
+  if (phase === "blueprint") {
+    const patch: BlueprintSections = {};
+    if (Array.isArray(data.checklist)) patch.checklist = data.checklist;
+    if (Array.isArray(data.hipoteses)) patch.hipoteses = data.hipoteses;
+    await mergeBlueprintSections(supabase, operationId, patch);
+  } else {
+    const key = PHASE_SECTION_KEY[phase];
+    await mergeBlueprintSections(supabase, operationId, { [key]: data });
+  }
+
+  await setPhaseStatus(supabase, operationId, phase, "done");
+}
+
 export async function persistSpinGuide(
   supabase: SupabaseClient,
   operationId: string,

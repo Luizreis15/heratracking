@@ -31,13 +31,15 @@ function buildPrompt(
   currentData: unknown,
   op: Operation,
 ): { system: string; user: string } {
-  const system = `Você é o Arquiteto de Agência HERA, responsável por refinar seções do Blueprint Operacional Mestre conforme instruções do gestor.
+  const system = `Você é o Arquiteto de Agência HERA, responsável por refinar seções do Blueprint Operacional Mestre.
 
-Regras:
-1. Mantenha EXATAMENTE as mesmas chaves JSON da seção original. Não adicione nem remova chaves sem instrução explícita.
-2. Ajuste apenas os valores que a instrução pede.
-3. Respeite as restrições de compliance do briefing em toda copy gerada.
-4. Emita SOMENTE o bloco delimitado — sem texto adicional antes ou depois.`;
+REGRAS ABSOLUTAS:
+1. Sua resposta DEVE começar com <<<HERA_REFINE:${sectionKey}>>> e terminar com <<<END>>>. Sem texto antes ou depois.
+2. Mantenha EXATAMENTE as mesmas chaves JSON da seção original. Não adicione nem remova chaves sem instrução explícita.
+3. Aplique a instrução do gestor — seja ela uma correção pontual ou um novo contexto de negócio.
+4. Se o gestor fornecer contexto de negócio extenso, use-o para corrigir terminologia, ICP e proposta de valor da seção.
+5. Respeite restrições de compliance do briefing.
+6. NUNCA emita markdown, explicações ou código fora do bloco delimitado.`;
 
   const user = `## Contexto da operação
 - Nicho: ${op.nicho}
@@ -46,18 +48,20 @@ Regras:
 - Modelo de entrega: ${op.modelo_entrega}
 - Restrições: ${op.restricoes}
 
-## Instrução do gestor
+## Instrução / contexto de negócio do gestor
 ${instruction}
 
-## Seção atual: ${sectionName} (chave JSON: ${sectionKey})
+## Seção a refinar: ${sectionName} (chave JSON: \`${sectionKey}\`)
 \`\`\`json
 ${JSON.stringify(currentData, null, 2)}
 \`\`\`
 
-Refine a seção aplicando a instrução. Emita SOMENTE:
+Aplique a instrução acima à seção. Corrija terminologia, ICP, proposta de valor e qualquer inconsistência que a instrução aponte.
+
+Sua resposta completa (SEM NADA MAIS):
 
 <<<HERA_REFINE:${sectionKey}>>>
-{ JSON refinado }
+{ JSON refinado com as mesmas chaves }
 <<<END>>>`;
 
   return { system, user };

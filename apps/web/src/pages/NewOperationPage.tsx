@@ -102,9 +102,14 @@ export function NewOperationPage() {
     if (!descricaoLivre.trim() || !operadorTipo) return;
     setIsParsing(true);
     setParseError(null);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 40_000);
+
     try {
       const { data, error } = await supabase.functions.invoke("parse-briefing", {
         body: { descricao: descricaoLivre.trim(), tipo: operadorTipo },
+        signal: controller.signal,
       });
       if (error) throw new Error(error.message);
       const parsed = data as {
@@ -124,8 +129,14 @@ export function NewOperationPage() {
       setAiPreencheu(true);
       setStep("briefing");
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : "Erro ao analisar. Tente novamente.");
+      const isAbort = err instanceof Error && err.name === "AbortError";
+      setParseError(
+        isAbort
+          ? "A análise demorou demais. Tente novamente ou preencha manualmente."
+          : (err instanceof Error ? err.message : "Erro ao analisar. Tente novamente."),
+      );
     } finally {
+      clearTimeout(timeout);
       setIsParsing(false);
     }
   }
@@ -341,7 +352,7 @@ export function NewOperationPage() {
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                {isParsing ? "Analisando seu negócio..." : "Analisar com IA e preencher campos"}
+                {isParsing ? "Analisando... isso leva ~15 segundos" : "Analisar com IA e preencher campos"}
               </button>
               <button
                 type="button"
