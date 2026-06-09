@@ -209,11 +209,12 @@ export function parseRefineBlock(
     }
   }
 
-  // Se o texto contém um bloco HERA_REFINE para OUTRA chave, não fazer fallback —
-  // Claude respondeu mas para a seção errada; os fallbacks pegariam o JSON errado.
-  if (/<<<HERA_REFINE:\w+>>>/.test(text)) return null;
+  // Se o texto contém um bloco HERA_REFINE para OUTRA chave (não a nossa), não fazer fallback.
+  const hasOwnBlock = new RegExp(`<<<HERA_REFINE:${sectionKey}>>>`).test(text);
+  const hasAnyBlock = /<<<HERA_REFINE:\w+>>>/.test(text);
+  if (hasAnyBlock && !hasOwnBlock) return null;
 
-  // Fallback: markdown JSON block (```json ... ```) quando Claude ignora o delimitador
+  // Fallback: markdown JSON block ```json ... ```
   const mdMatch = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/.exec(text);
   if (mdMatch?.[1]) {
     try {
@@ -225,16 +226,27 @@ export function parseRefineBlock(
     } catch { /* ignora */ }
   }
 
-  // Last resort: primeiro objeto JSON bruto na resposta
-  const rawMatch = /(\{[\s\S]*\})/.exec(text);
-  if (rawMatch?.[1]) {
-    try {
-      const parsed = JSON.parse(rawMatch[1].trim()) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        console.warn(`[worker] parseRefineBlock: usando fallback raw JSON para ${sectionKey}`);
-        return parsed as Record<string, unknown>;
+  // Last resort: brace-matching para extrair o primeiro objeto JSON completo
+  const start = text.indexOf("{");
+  if (start >= 0) {
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}") {
+        depth--;
+        if (depth === 0) { end = i; break; }
       }
-    } catch { /* ignora */ }
+    }
+    if (end >= 0) {
+      try {
+        const parsed = JSON.parse(text.slice(start, end + 1)) as unknown;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          console.warn(`[worker] parseRefineBlock: usando fallback brace-match para ${sectionKey}`);
+          return parsed as Record<string, unknown>;
+        }
+      } catch { /* ignora */ }
+    }
   }
 
   return null;

@@ -35,56 +35,38 @@ function buildPrompt(
 ): { system: string; user: string } {
   const includesSpin = sectionKey === "comercial" && spinGuide != null;
 
-  const spinRules = includesSpin
-    ? `\n7. Como está refinando a seção "comercial", TAMBÉM refine o SPIN Selling Guide abaixo mantendo as chaves (situacao, problema, implicacao, necessidade) e emita o bloco <<<HERA_SPIN>>>...<<<END>>> APÓS o bloco HERA_REFINE.`
-    : "";
+  const system = `Você é o Arquiteto de Agência HERA, especialista em estruturar operações de agências.
+Sua tarefa: refinar a seção JSON abaixo conforme a instrução do gestor.
 
-  const system = `Você é o Arquiteto de Agência HERA, responsável por refinar seções do Blueprint Operacional Mestre.
+REGRAS:
+1. Mantenha EXATAMENTE as mesmas chaves JSON. Não adicione nem remova chaves.
+2. Aplique a instrução — seja uma correção pontual ou novo contexto de negócio.
+3. Respeite as restrições de compliance do briefing.
+4. RESPONDA APENAS COM O JSON REFINADO. Zero texto antes ou depois. Zero markdown.`;
 
-REGRAS ABSOLUTAS:
-1. Sua resposta DEVE começar com <<<HERA_REFINE:${sectionKey}>>> e terminar com <<<END>>>. Sem texto antes ou depois.
-2. Mantenha EXATAMENTE as mesmas chaves JSON da seção original. Não adicione nem remova chaves sem instrução explícita.
-3. Aplique a instrução do gestor — seja ela uma correção pontual ou um novo contexto de negócio.
-4. Se o gestor fornecer contexto de negócio extenso, use-o para corrigir terminologia, ICP e proposta de valor da seção.
-5. Respeite restrições de compliance do briefing.
-6. NUNCA emita markdown, explicações ou código fora dos blocos delimitados.${spinRules}`;
-
-  const spinSection = includesSpin
-    ? `\n## SPIN Selling Guide atual (refine também conforme a instrução acima)
-\`\`\`json
+  const spinBlock = includesSpin
+    ? `\n\n## SPIN Selling Guide atual (também ajuste se a instrução impactar o processo de vendas)
 ${JSON.stringify(spinGuide, null, 2)}
-\`\`\`
-`
-    : "";
 
-  const spinOutputExample = includesSpin
-    ? `\n<<<HERA_SPIN>>>
-{ JSON do SPIN Guide refinado com as chaves situacao, problema, implicacao, necessidade }
+Após o JSON da seção, adicione o SPIN Guide refinado marcado assim:
+<<<HERA_SPIN>>>
+{ JSON do SPIN Guide }
 <<<END>>>`
     : "";
 
-  const user = `## Contexto da operação
+  const user = `## Contexto
 - Nicho: ${op.nicho}
 - Posicionamento: ${op.posicionamento}
 - Ticket-alvo: ${op.ticket_alvo}
-- Modelo de entrega: ${op.modelo_entrega}
 - Restrições: ${op.restricoes}
 
-## Instrução / contexto de negócio do gestor
+## Instrução do gestor
 ${instruction}
 
-## Seção a refinar: ${sectionName} (chave JSON: \`${sectionKey}\`)
-\`\`\`json
-${JSON.stringify(currentData, null, 2)}
-\`\`\`
-${spinSection}
-Aplique a instrução acima à seção. Corrija terminologia, ICP, proposta de valor e qualquer inconsistência que a instrução aponte.
+## Seção atual — ${sectionName}
+${JSON.stringify(currentData, null, 2)}${spinBlock}
 
-Sua resposta completa (SEM NADA MAIS):
-
-<<<HERA_REFINE:${sectionKey}>>>
-{ JSON refinado com as mesmas chaves }
-<<<END>>>${spinOutputExample}`;
+Retorne o JSON refinado da seção agora (APENAS o JSON, sem nenhum texto):`;
 
   return { system, user };
 }
