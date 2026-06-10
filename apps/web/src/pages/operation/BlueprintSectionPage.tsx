@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useOutletContext, useParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles, X } from "lucide-react";
+import { SpinPanel } from "@/components/blueprint/SpinPanel";
 import { SECTION_DEFS, type BlueprintLayoutContext } from "./BlueprintView";
 import type { Json } from "@/types/index";
 
@@ -37,6 +38,7 @@ export function BlueprintSectionPage() {
   }
 
   const isSectionRefining = refiningSection === sectionKey && isAnyRefining;
+  const isSpinRefining = refiningSection === "spin" && isAnyRefining;
 
   const filledKeys = filledSections.map((s) => s.key);
   const currentFilledIdx = filledKeys.indexOf(sectionKey!);
@@ -101,6 +103,13 @@ export function BlueprintSectionPage() {
             </div>
             <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
               Descreva o que deve mudar. O worker regenera apenas esta seção, mantendo o restante.
+              {def.key === "comercial" && (
+                <>
+                  {" "}
+                  O guia <strong>SPIN Selling</strong> abaixo também é atualizado junto com o processo
+                  comercial.
+                </>
+              )}
             </p>
             <textarea
               rows={2}
@@ -150,10 +159,13 @@ export function BlueprintSectionPage() {
 
       {/* Section content — always visible, no accordion */}
       <div className="hera-card px-6 pb-10 pt-6 hera-prose">
-        {def.render(
-          data,
-          operationId,
-          def.key === "comercial" ? spinGuide : undefined,
+        {def.render(data, operationId)}
+        {def.key === "comercial" && (
+          <SpinPanel
+            spinGuide={spinGuide}
+            onRefineSpin={(instr) => makeRefineHandler("spin")(instr)}
+            isRefining={isSpinRefining}
+          />
         )}
       </div>
 

@@ -127,6 +127,7 @@ export async function runComparativo(
     if (totalCostUsd) await incrementOperationCost(supabase, operationId, totalCostUsd);
     await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
+      restoreJobMode: true,
     });
 
     await appendPhaseLog(

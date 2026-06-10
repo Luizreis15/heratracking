@@ -154,6 +154,7 @@ export async function runJobContent(
     if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
     await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
+      restoreJobMode: true,
     });
 
     console.log(`[worker][content] ${rows.length} itens gravados — ${operationId}`);

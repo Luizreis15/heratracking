@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { MercadoIcpSection } from "@/components/blueprint/MercadoIcpSection";
 import { OfertaEscadaSection } from "@/components/blueprint/OfertaEscadaSection";
 import { ComercialSection } from "@/components/blueprint/ComercialSection";
-import { SpinPanel } from "@/components/blueprint/SpinPanel";
+import { toastError, toastSuccess } from "@/lib/toast";
 import { PosicionamentoSection } from "@/components/blueprint/PosicionamentoSection";
 import { TrafegoFunilSection } from "@/components/blueprint/TrafegoFunilSection";
 import { ChecklistSection } from "@/components/blueprint/ChecklistSection";
@@ -19,7 +19,7 @@ import type { OperationContext } from "./operation-context";
 export type SectionDef = {
   key: string;
   label: string;
-  render: (data: Json, operationId: string, spinGuide?: Json | null) => React.ReactNode;
+  render: (data: Json, operationId: string) => React.ReactNode;
 };
 
 export const SECTION_DEFS: SectionDef[] = [
@@ -36,12 +36,7 @@ export const SECTION_DEFS: SectionDef[] = [
   {
     key: "comercial",
     label: "Processo Comercial",
-    render: (data, _opId, spinGuide) => (
-      <>
-        <ComercialSection data={data} />
-        <SpinPanel spinGuide={spinGuide ?? null} />
-      </>
-    ),
+    render: (data) => <ComercialSection data={data} />,
   },
   {
     key: "posicionamento",
@@ -83,6 +78,7 @@ export function BlueprintLayout() {
   const { sectionKey } = useParams<{ sectionKey?: string }>();
 
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
+  const prevStatusRef = useRef(operation.status);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
@@ -102,14 +98,25 @@ export function BlueprintLayout() {
 
   // Limpa refiningSection e recarrega blueprint quando o job termina
   useEffect(() => {
-    if (refiningSection === null) return;
-    if (operation.status === "done" || operation.status === "error") {
+    const wasRefining = refiningSection !== null;
+    const statusChanged = prevStatusRef.current !== operation.status;
+    prevStatusRef.current = operation.status;
+
+    if (!wasRefining || !statusChanged) return;
+
+    if (operation.status === "done") {
+      const label =
+        SECTION_DEFS.find((s) => s.key === refiningSection)?.label ??
+        (refiningSection === "spin" ? "SPIN Selling" : refiningSection);
+      toastSuccess(`"${label}" atualizado com sucesso`);
       setRefiningSection(null);
-      if (operation.status === "done") {
-        void queryClient.invalidateQueries({ queryKey: ["blueprint", operationId] });
-      }
+      void queryClient.invalidateQueries({ queryKey: ["blueprint", operationId] });
+      void queryClient.invalidateQueries({ queryKey: ["operation", operationId] });
+    } else if (operation.status === "error") {
+      toastError(operation.error ?? "Refinamento falhou — veja logs do worker");
+      setRefiningSection(null);
     }
-  }, [operation.status, refiningSection, operationId, queryClient]);
+  }, [operation.status, operation.error, refiningSection, operationId, queryClient]);
 
   useEffect(() => {
     if (!exportOpen) return;

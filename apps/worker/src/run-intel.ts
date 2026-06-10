@@ -158,6 +158,7 @@ export async function runIntelScan(
     await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
       intelScan: true,
+      restoreJobMode: true,
     });
 
     console.log(

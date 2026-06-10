@@ -93,6 +93,7 @@ export async function runConcorrenciaEnrichment(
     if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
     await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
+      restoreJobMode: true,
     });
     console.log(`[worker][perplexity] Concorrência enriquecida — ${operationId}`);
   } catch (err) {

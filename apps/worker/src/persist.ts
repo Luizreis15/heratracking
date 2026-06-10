@@ -454,15 +454,21 @@ export async function markOperationDone(
   supabase: SupabaseClient,
   operationId: string,
   costUsd: number | null | undefined,
-  opts?: { keepPhase?: string; intelScan?: boolean },
+  opts?: { keepPhase?: string; intelScan?: boolean; restoreJobMode?: boolean },
 ): Promise<void> {
   const patch: Record<string, unknown> = {
     status: "done",
     current_phase: opts?.keepPhase ?? "blueprint",
     finished_at: new Date().toISOString(),
+    error: null,
   };
   if (costUsd != null) patch.cost_usd = costUsd;
   if (opts?.intelScan) patch.last_intel_scan_at = new Date().toISOString();
+  if (opts?.restoreJobMode) {
+    patch.job_mode = "full";
+    patch.refine_params = null;
+    patch.content_params = null;
+  }
 
   const { error } = await supabase
     .from("operations")

@@ -7,3 +7,7 @@ export function toastError(message: string) {
 export function toastWarning(message: string) {
   toast.warning(message);
 }
+
+export function toastSuccess(message: string) {
+  toast.success(message);
+}

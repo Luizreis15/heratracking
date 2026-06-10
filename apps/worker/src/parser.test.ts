@@ -7,6 +7,7 @@ import {
   parseComparativoBlock,
   parseContentBlock,
   parseRefineBlock,
+  parseSpinBlock,
   toolLogLine,
 } from "./parser.js";
 
@@ -285,6 +286,33 @@ ${JSON.stringify(data)}
 ["item1","item2"]
 <<<END>>>`;
     expect(parseRefineBlock(text, "hipoteses")).toBeNull();
+  });
+});
+
+describe("parseRefineBlock + parseSpinBlock (comercial)", () => {
+  it("parses comercial refine and SPIN from same response", () => {
+    const comercial = {
+      funil_comercial: ["Lead → Call"],
+      sdr: { criterios: [], scripts: [] },
+      closer: { roteiro_call: [], perguntas: [] },
+      carta_vendas: "",
+      pitch_stacking: "",
+    };
+    const spin = {
+      situacao: ["Como vocês homologam fornecedores hoje?"],
+      problema: ["Quanto tempo leva uma auditoria manual?"],
+      implicacao: ["O que acontece se um fornecedor não conforme passar?"],
+      necessidade: ["Como seria ter rastreabilidade em tempo real?"],
+    };
+    const text = `<<<HERA_REFINE:comercial>>>
+${JSON.stringify(comercial)}
+<<<END>>>
+<<<HERA_SPIN>>>
+${JSON.stringify(spin)}
+<<<END>>>`;
+
+    expect(parseRefineBlock(text, "comercial")).toEqual(comercial);
+    expect(parseSpinBlock(text, false)).toEqual(spin);
   });
 });
 
