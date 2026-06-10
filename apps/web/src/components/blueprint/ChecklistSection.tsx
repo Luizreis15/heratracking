@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { CheckSquare2, Square } from "lucide-react";
+import { CheckSquare2, ListChecks, Square } from "lucide-react";
 import { asStrings } from "@/lib/blueprint-types";
 import type { Json } from "@/types/index";
+import { BlueprintCockpit } from "./cockpit/BlueprintCockpit";
+import { BlueprintModuleHeader } from "./cockpit/BlueprintModuleHeader";
+import type { BlueprintSectionRefineProps } from "./cockpit/types";
 
 function storageKey(operationId: string) {
   return `hera-checklist-${operationId}`;
@@ -22,20 +25,15 @@ function saveChecked(operationId: string, checked: Set<number>) {
   try {
     localStorage.setItem(storageKey(operationId), JSON.stringify([...checked]));
   } catch {
-    // localStorage bloqueado
+    /* noop */
   }
 }
 
-function parseItem(item: unknown, i: number): { text: string; responsavel: string; prazo: string } {
+function parseItem(item: unknown, i: number) {
   if (typeof item === "string") {
-    // "[ ] Configurar pixel Meta — Dev — Semana 1"
     const clean = item.replace(/^\[[\sx]\]\s*/i, "").trim();
     const parts = clean.split(" — ").map((s) => s.trim());
-    return {
-      text: parts[0] ?? clean,
-      responsavel: parts[1] ?? "",
-      prazo: parts[2] ?? "",
-    };
+    return { text: parts[0] ?? clean, responsavel: parts[1] ?? "", prazo: parts[2] ?? "" };
   }
   if (item && typeof item === "object" && !Array.isArray(item)) {
     const obj = item as Record<string, unknown>;
@@ -43,7 +41,6 @@ function parseItem(item: unknown, i: number): { text: string; responsavel: strin
       text:
         (typeof obj.tarefa === "string" ? obj.tarefa : null) ??
         (typeof obj.texto === "string" ? obj.texto : null) ??
-        (typeof obj.task === "string" ? obj.task : null) ??
         `Tarefa ${i + 1}`,
       responsavel: typeof obj.responsavel === "string" ? obj.responsavel : "",
       prazo: typeof obj.prazo === "string" ? obj.prazo : "",
@@ -52,18 +49,30 @@ function parseItem(item: unknown, i: number): { text: string; responsavel: strin
   return { text: String(item), responsavel: "", prazo: "" };
 }
 
+function extractItems(data: Json): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const obj = data as Record<string, unknown>;
+    if (Array.isArray(obj.checklist)) return obj.checklist;
+  }
+  const strings = asStrings(data as unknown);
+  return strings.length ? strings : [];
+}
+
 type Props = {
   data: Json;
   operationId: string;
-};
+} & BlueprintSectionRefineProps;
 
-export function ChecklistSection({ data, operationId }: Props) {
-  const items = asStrings(data as unknown).length > 0
-    ? (data as unknown[])
-    : Array.isArray(data) ? data : [];
-
+export function ChecklistSection({
+  data,
+  operationId,
+  onRefineModule,
+  refiningModule = null,
+  isRefining = false,
+}: Props) {
+  const items = extractItems(data);
   const parsed = items.map((item, i) => parseItem(item, i));
-
   const [checked, setChecked] = useState<Set<number>>(() => loadChecked(operationId));
 
   useEffect(() => {
@@ -84,81 +93,81 @@ export function ChecklistSection({ data, operationId }: Props) {
 
   if (parsed.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground pt-2">Checklist não disponível nesta seção.</p>
+      <p className="text-sm text-muted-foreground text-center py-8">Checklist não disponível.</p>
     );
   }
 
+  const refining = isRefining && refiningModule === "checklist";
+
   return (
-    <div className="space-y-4 pt-2">
-      {/* Progresso */}
-      <div className="flex items-center gap-4">
-        <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+    <BlueprintCockpit
+      title="Cockpit Implementação"
+      subtitle="Marque tarefas concluídas — progresso salvo localmente"
+      stats={[
+        { label: "Total", value: parsed.length },
+        { label: "Feitas", value: doneCount },
+        { label: "Pendentes", value: parsed.length - doneCount },
+        { label: "Progresso", value: `${pct}%` },
+        { label: "Status", value: pct === 100 ? "✓" : "…" },
+      ]}
+      modules={[{ id: "tasks" as const, label: "Tarefas", icon: ListChecks, refining }]}
+      activeModule="tasks"
+      onSelectModule={() => {}}
+    >
+      <BlueprintModuleHeader
+        icon={ListChecks}
+        title="Checklist de Implementação"
+        subtitle="Clique para marcar como concluída"
+        refinePlaceholder="Ex.: adicionar tarefas de integração ERP e treinamento do time"
+        onRefine={onRefineModule ? (i) => onRefineModule("checklist", i) : undefined}
+        isRefining={refining}
+        disabled={isRefining && !refining}
+      >
+        <div className="h-2 bg-muted rounded-full overflow-hidden mb-4">
           <div
             className="h-full bg-hera-done rounded-full transition-all duration-500"
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="hera-mono text-sm font-semibold text-foreground shrink-0">
-          {doneCount}/{parsed.length}
-        </span>
-        <span className="hera-mono text-xs text-muted-foreground shrink-0">{pct}% concluído</span>
-      </div>
-
-      {/* Items */}
-      <div className="space-y-2">
-        {parsed.map((item, i) => {
-          const done = checked.has(i);
-          return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => toggle(i)}
-              className={[
-                "w-full flex gap-3 items-start text-left rounded-lg border px-4 py-3 transition-colors",
-                done
-                  ? "border-hera-done/30 bg-hera-done/5"
-                  : "border-border hover:border-border/80 hover:bg-accent/20",
-              ].join(" ")}
-            >
-              <div className="shrink-0 mt-0.5">
+        <div className="space-y-2">
+          {parsed.map((item, i) => {
+            const done = checked.has(i);
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => toggle(i)}
+                className={[
+                  "w-full flex gap-3 items-start text-left rounded-lg border px-4 py-3 min-h-[64px] transition-colors",
+                  done ? "border-hera-done/30 bg-hera-done/5" : "border-border hover:bg-accent/20",
+                ].join(" ")}
+              >
                 {done ? (
-                  <CheckSquare2 className="h-4.5 w-4.5 text-hera-done" />
+                  <CheckSquare2 className="h-4 w-4 text-hera-done shrink-0 mt-0.5" />
                 ) : (
-                  <Square className="h-4.5 w-4.5 text-muted-foreground" />
+                  <Square className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p
-                  className={[
-                    "text-sm leading-relaxed",
-                    done ? "text-muted-foreground line-through" : "text-foreground",
-                  ].join(" ")}
-                >
-                  {item.text}
-                </p>
-                {(item.responsavel || item.prazo) && (
-                  <div className="flex gap-3 mt-0.5">
-                    {item.responsavel && (
-                      <span className="text-[10px] text-muted-foreground">{item.responsavel}</span>
-                    )}
-                    {item.prazo && (
-                      <span className="text-[10px] text-primary">{item.prazo}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {doneCount === parsed.length && parsed.length > 0 && (
-        <div className="hera-card px-4 py-3 border-hera-done/30 bg-hera-done/5 text-center">
-          <p className="text-sm font-semibold text-hera-done">
-            ✓ Checklist completo — operação pronta para escalar.
-          </p>
+                <div className="flex-1 min-w-0">
+                  <p className={["text-sm leading-relaxed", done && "line-through text-muted-foreground"].filter(Boolean).join(" ")}>
+                    {item.text}
+                  </p>
+                  {(item.responsavel || item.prazo) && (
+                    <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
+                      {item.responsavel && <span>{item.responsavel}</span>}
+                      {item.prazo && <span className="text-primary">{item.prazo}</span>}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
-      )}
-    </div>
+        {pct === 100 && (
+          <div className="mt-4 rounded-lg border border-hera-done/30 bg-hera-done/5 px-4 py-3 text-center text-sm text-hera-done font-semibold">
+            Checklist completo — pronto para escalar.
+          </div>
+        )}
+      </BlueprintModuleHeader>
+    </BlueprintCockpit>
   );
 }

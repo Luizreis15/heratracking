@@ -1,10 +1,43 @@
 import { useState } from "react";
 import { NavLink, useOutletContext, useParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles, X } from "lucide-react";
-import { ComercialSection, type ComercialFocusField } from "@/components/blueprint/ComercialSection";
+import { ChecklistSection } from "@/components/blueprint/ChecklistSection";
+import { ComercialSection } from "@/components/blueprint/ComercialSection";
+import { HipotesesSection } from "@/components/blueprint/HipotesesSection";
+import { MercadoIcpSection } from "@/components/blueprint/MercadoIcpSection";
+import { OfertaEscadaSection } from "@/components/blueprint/OfertaEscadaSection";
+import { PosicionamentoSection } from "@/components/blueprint/PosicionamentoSection";
 import { SpinPanel } from "@/components/blueprint/SpinPanel";
+import { TrafegoFunilSection } from "@/components/blueprint/TrafegoFunilSection";
+import type { BlueprintSectionRefineProps } from "@/components/blueprint/cockpit/types";
 import { SECTION_DEFS, type BlueprintLayoutContext } from "./BlueprintView";
 import type { Json } from "@/types/index";
+
+function renderSection(
+  key: string,
+  data: Json,
+  operationId: string,
+  refine: BlueprintSectionRefineProps,
+) {
+  switch (key) {
+    case "mercado_icp":
+      return <MercadoIcpSection data={data} {...refine} />;
+    case "oferta_escada":
+      return <OfertaEscadaSection data={data} {...refine} />;
+    case "comercial":
+      return <ComercialSection data={data} {...refine} />;
+    case "posicionamento":
+      return <PosicionamentoSection data={data} {...refine} />;
+    case "trafego_funil":
+      return <TrafegoFunilSection data={data} {...refine} />;
+    case "checklist":
+      return <ChecklistSection data={data} operationId={operationId} {...refine} />;
+    case "hipoteses":
+      return <HipotesesSection data={data} operationId={operationId} {...refine} />;
+    default:
+      return SECTION_DEFS.find((s) => s.key === key)?.render(data, operationId) ?? null;
+  }
+}
 
 export function BlueprintSectionPage() {
   const { sectionKey } = useParams<{ sectionKey: string }>();
@@ -42,12 +75,20 @@ export function BlueprintSectionPage() {
   const isSectionRefining = refiningSection === sectionKey && isAnyRefining;
   const isSpinRefining = refiningSection === "spin" && isAnyRefining;
 
+  const refineProps: BlueprintSectionRefineProps = {
+    onRefineModule: (field, instr) =>
+      makeRefineHandler(def.key, { focusField: field })(instr),
+    refiningModule: refiningSection === def.key ? refiningFocus : null,
+    isRefining: isSectionRefining,
+  };
+
   const filledKeys = filledSections.map((s) => s.key);
   const currentFilledIdx = filledKeys.indexOf(sectionKey!);
   const prevKey = currentFilledIdx > 0 ? filledKeys[currentFilledIdx - 1] : null;
-  const nextKey = currentFilledIdx >= 0 && currentFilledIdx < filledKeys.length - 1
-    ? filledKeys[currentFilledIdx + 1]
-    : null;
+  const nextKey =
+    currentFilledIdx >= 0 && currentFilledIdx < filledKeys.length - 1
+      ? filledKeys[currentFilledIdx + 1]
+      : null;
   const prevDef = prevKey ? SECTION_DEFS.find((s) => s.key === prevKey) : null;
   const nextDef = nextKey ? SECTION_DEFS.find((s) => s.key === nextKey) : null;
 
@@ -65,7 +106,6 @@ export function BlueprintSectionPage() {
 
   return (
     <div className="space-y-4 hera-reveal-up">
-      {/* Section header */}
       <div className="hera-card px-6 py-5">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -88,56 +128,40 @@ export function BlueprintSectionPage() {
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
-            Ajustar com IA
+            Ajustar seção inteira
           </button>
         </div>
 
-        {/* Inline refine panel */}
         {aiOpen && (
           <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
             <div className="flex items-start justify-between gap-3 mb-1.5">
-              <p className="text-xs font-semibold text-primary">
-                Refinamento — {def.label}
-              </p>
+              <p className="text-xs font-semibold text-primary">Refinamento — {def.label}</p>
               <button type="button" onClick={() => setAiOpen(false)}>
                 <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
-              Descreva o que deve mudar. O worker regenera apenas esta seção, mantendo o restante.
-              {def.key === "comercial" && (
-                <>
-                  {" "}
-                  Cada módulo (Funil, SDR, Closer, Carta, Pitch) tem botão <strong>Ajustar</strong>{" "}
-                  próprio. O ajuste da seção inteira também atualiza o SPIN.
-                </>
-              )}
+              Regenera a seção completa. Cada módulo dentro do cockpit também tem botão{" "}
+              <strong>Ajustar</strong> para mudanças pontuais.
+              {def.key === "comercial" && " A seção inteira também atualiza o SPIN."}
             </p>
             <textarea
               rows={2}
               autoFocus
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
-              placeholder='Ex.: "Remover menção a restauração — foco apenas em implante e reabilitação multifuncional"'
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground
-                         focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground resize-none"
+              placeholder='Ex.: "Alinhar tom B2B SaaS — remover linguagem de agência"'
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none
+                         focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <div className="flex items-center justify-between mt-2.5">
-              <p className="text-[10px] text-muted-foreground">
-                O worker regenera apenas esta seção.
-              </p>
+            <div className="flex justify-end mt-2.5">
               <button
                 type="button"
                 onClick={() => void handleRefine()}
                 disabled={!instruction.trim() || submitting}
                 className="hera-btn-primary text-xs py-1.5 px-3"
               >
-                {submitting ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3 w-3" />
-                )}
-                Regenerar seção
+                {submitting ? <Loader2 className="h-3 w-3 animate-spin" /> : "Regenerar seção"}
               </button>
             </div>
           </div>
@@ -153,26 +177,14 @@ export function BlueprintSectionPage() {
           <div className="mt-3 rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
             <p className="text-xs font-semibold text-destructive mb-0.5">Refinamento falhou</p>
             <p className="text-[11px] text-destructive/80 font-mono break-all">
-              {operation.error ?? "Erro desconhecido — veja logs do worker"}
+              {operation.error ?? "Erro desconhecido"}
             </p>
           </div>
         )}
       </div>
 
-      {/* Section content — always visible, no accordion */}
-      <div className="hera-card px-6 pb-10 pt-6 hera-prose">
-        {def.key === "comercial" ? (
-          <ComercialSection
-            data={data}
-            onRefineModule={(field, instr) =>
-              makeRefineHandler("comercial", { focusField: field })(instr)
-            }
-            refiningModule={(refiningFocus as ComercialFocusField | null) ?? null}
-            isRefining={isSectionRefining}
-          />
-        ) : (
-          def.render(data, operationId)
-        )}
+      <div className="hera-card px-6 pb-10 pt-6">
+        {renderSection(def.key, data, operationId, refineProps)}
         {def.key === "comercial" && (
           <SpinPanel
             spinGuide={spinGuide}
@@ -182,7 +194,6 @@ export function BlueprintSectionPage() {
         )}
       </div>
 
-      {/* Prev / Next navigation */}
       {(prevDef || nextDef) && (
         <div className="flex items-center justify-between gap-4 pt-2">
           {prevDef ? (

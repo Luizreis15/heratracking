@@ -1,192 +1,185 @@
+import { useState } from "react";
+import { BookOpen, Layers, Megaphone, Quote } from "lucide-react";
 import type { Json } from "@/types/index";
 import { asString, asStrings, type PosicionamentoData } from "@/lib/blueprint-types";
+import { BlueprintCockpit } from "./cockpit/BlueprintCockpit";
+import { BlueprintModuleHeader } from "./cockpit/BlueprintModuleHeader";
+import type { BlueprintSectionRefineProps } from "./cockpit/types";
 
-type Pilar = {
-  nome?: string;
-  titulo?: string;
-  descricao?: string;
-  exemplos?: unknown;
-  funil?: string;
-  etapa_funil?: string;
+type Module = "statement" | "narrativa" | "pilares" | "editorial";
+
+const REFINE: Record<Module, { field: string; placeholder: string }> = {
+  statement: { field: "statement", placeholder: "Ex.: statement mais técnico para decisor de compras B2B" },
+  narrativa: { field: "narrativa", placeholder: "Ex.: narrativa StoryBrand com herói = gestor de qualidade" },
+  pilares: { field: "pilares_conteudo", placeholder: "Ex.: 4 pilares — compliance, eficiência, rastreio, integração" },
+  editorial: { field: "linha_editorial", placeholder: "Ex.: mix 60% educativo LinkedIn + 40% cases técnicos" },
 };
 
-function parsePilar(item: unknown, i: number): Pilar & { index: number } {
-  if (typeof item === "string") {
-    const parts = item.split(":");
-    return {
-      index: i,
-      nome: parts[0]?.trim() ?? `Pilar ${i + 1}`,
-      descricao: parts.slice(1).join(":").trim(),
-    };
-  }
-  if (item && typeof item === "object" && !Array.isArray(item)) {
-    const obj = item as Pilar;
-    return { index: i, ...obj };
-  }
-  return { index: i, nome: `Pilar ${i + 1}`, descricao: String(item) };
-}
-
-const PILAR_COLORS = [
-  "border-primary/30",
-  "border-hera-running/30",
-  "border-hera-done/30",
-  "border-hera-alert/30",
-  "border-destructive/25",
-];
-
 const NARRATIVA_STEPS = [
-  { key: "heroi", label: "Herói", desc: "Quem é o cliente e o que ele quer" },
-  { key: "problema", label: "Problema", desc: "O obstáculo que o impede" },
-  { key: "guia", label: "Guia", desc: "Como a agência aparece para ajudar" },
-  { key: "plano", label: "Plano", desc: "Os passos concretos da solução" },
-  { key: "cta", label: "CTA", desc: "A ação que o cliente deve tomar" },
+  { key: "heroi", label: "Herói" },
+  { key: "problema", label: "Problema" },
+  { key: "guia", label: "Guia" },
+  { key: "plano", label: "Plano" },
+  { key: "cta", label: "CTA" },
 ] as const;
 
-export function PosicionamentoSection({ data }: { data: Json }) {
+export function PosicionamentoSection({
+  data,
+  onRefineModule,
+  refiningModule = null,
+  isRefining = false,
+}: { data: Json } & BlueprintSectionRefineProps) {
   const d = (data ?? {}) as PosicionamentoData;
   const narrativa = d.narrativa ?? {};
   const pilares = Array.isArray(d.pilares_conteudo) ? d.pilares_conteudo : [];
   const editorial = d.linha_editorial ?? {};
   const formatos = asStrings(editorial.formatos);
 
-  return (
-    <div className="space-y-8 pt-2">
+  const modules: Module[] = [];
+  if (d.statement) modules.push("statement");
+  if (Object.values(narrativa).some(Boolean)) modules.push("narrativa");
+  if (pilares.length) modules.push("pilares");
+  if (editorial.mix || formatos.length) modules.push("editorial");
+  if (!modules.length) modules.push("statement");
 
-      {/* Statement — hero text */}
-      {d.statement && (
-        <div className="hera-card p-6 border-primary/30 bg-gradient-to-br from-primary/8 to-transparent">
-          <p className="hera-label mb-3">Statement de Posicionamento</p>
-          <p className="text-lg font-serif font-semibold text-foreground leading-relaxed">
+  const [active, setActive] = useState<Module | null>(null);
+  const [expandedPilar, setExpandedPilar] = useState<number | null>(0);
+  const effective = active && modules.includes(active) ? active : modules[0]!;
+  const moduleRefining = (m: Module) => isRefining && refiningModule === REFINE[m].field;
+
+  return (
+    <BlueprintCockpit
+      title="Cockpit Posicionamento"
+      subtitle="Statement, narrativa, pilares e linha editorial"
+      stats={[
+        { label: "Pilares", value: pilares.length },
+        { label: "Formatos", value: formatos.length },
+        { label: "Narrativa", value: NARRATIVA_STEPS.filter((s) => narrativa[s.key]).length },
+        { label: "Statement", value: d.statement ? "✓" : "—" },
+        { label: "Cadência", value: editorial.cadencia ? "✓" : "—" },
+      ]}
+      modules={[
+        { id: "statement" as Module, label: "Statement", icon: Quote, refining: moduleRefining("statement") },
+        { id: "narrativa" as Module, label: "Narrativa", icon: BookOpen, refining: moduleRefining("narrativa") },
+        { id: "pilares" as Module, label: "Pilares", icon: Layers, refining: moduleRefining("pilares") },
+        { id: "editorial" as Module, label: "Editorial", icon: Megaphone, refining: moduleRefining("editorial") },
+      ].filter((m) => modules.includes(m.id))}
+      activeModule={effective}
+      onSelectModule={setActive}
+    >
+      {effective === "statement" && d.statement && (
+        <BlueprintModuleHeader
+          icon={Quote}
+          title="Statement de Posicionamento"
+          subtitle="Frase-mãe da marca"
+          refinePlaceholder={REFINE.statement.placeholder}
+          onRefine={onRefineModule ? (i) => onRefineModule(REFINE.statement.field, i) : undefined}
+          isRefining={moduleRefining("statement")}
+          disabled={isRefining && !moduleRefining("statement")}
+        >
+          <p className="text-lg font-serif font-semibold leading-relaxed text-center px-4 py-6 rounded-xl border border-primary/30 bg-primary/5">
             &ldquo;{asString(d.statement)}&rdquo;
           </p>
-        </div>
+        </BlueprintModuleHeader>
       )}
 
-      {/* Narrativa StoryBrand */}
-      {Object.values(narrativa).some((v) => v) && (
-        <div>
-          <p className="hera-label mb-4">Narrativa da Marca (StoryBrand)</p>
-          <div className="space-y-3">
+      {effective === "narrativa" && (
+        <BlueprintModuleHeader
+          icon={BookOpen}
+          title="Narrativa StoryBrand"
+          subtitle="Herói → Problema → Guia → Plano → CTA"
+          refinePlaceholder={REFINE.narrativa.placeholder}
+          onRefine={onRefineModule ? (i) => onRefineModule(REFINE.narrativa.field, i) : undefined}
+          isRefining={moduleRefining("narrativa")}
+          disabled={isRefining && !moduleRefining("narrativa")}
+        >
+          <div className="grid sm:grid-cols-2 gap-2">
             {NARRATIVA_STEPS.map((step, i) => {
               const val = asString(narrativa[step.key]);
               if (!val) return null;
               return (
-                <div key={step.key} className="flex gap-4 items-start">
-                  <div className="flex flex-col items-center shrink-0">
-                    <div className="h-8 w-8 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-xs font-bold text-primary">
-                      {i + 1}
-                    </div>
-                    {i < NARRATIVA_STEPS.length - 1 && (
-                      <div className="w-px h-4 bg-border mt-1" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-1">
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <p className="text-xs font-semibold text-primary">{step.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{step.desc}</p>
-                    </div>
-                    <p className="text-sm text-foreground leading-relaxed">{val}</p>
-                  </div>
+                <div key={step.key} className="rounded-lg border border-border px-4 py-3 min-h-[80px]">
+                  <p className="text-[10px] font-bold text-primary uppercase">
+                    {String(i + 1).padStart(2, "0")} · {step.label}
+                  </p>
+                  <p className="text-sm text-foreground mt-2 leading-relaxed">{val}</p>
                 </div>
               );
             })}
           </div>
-        </div>
+        </BlueprintModuleHeader>
       )}
 
-      {/* Pilares de Conteúdo */}
-      {pilares.length > 0 && (
-        <div>
-          <p className="hera-label mb-4">
-            Pilares de Conteúdo{" "}
-            <span className="normal-case font-normal text-muted-foreground">
-              ({pilares.length} pilares)
-            </span>
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {effective === "pilares" && pilares.length > 0 && (
+        <BlueprintModuleHeader
+          icon={Layers}
+          title="Pilares de Conteúdo"
+          subtitle="Clique para expandir cada pilar"
+          refinePlaceholder={REFINE.pilares.placeholder}
+          onRefine={onRefineModule ? (i) => onRefineModule(REFINE.pilares.field, i) : undefined}
+          isRefining={moduleRefining("pilares")}
+          disabled={isRefining && !moduleRefining("pilares")}
+        >
+          <div className="grid sm:grid-cols-2 gap-2">
             {pilares.map((item, i) => {
-              const p = parsePilar(item, i);
-              const borderColor = PILAR_COLORS[i % PILAR_COLORS.length];
-              const exemplos = asStrings(p.exemplos);
-              const funil = asString(p.funil ?? p.etapa_funil ?? "");
+              const p =
+                typeof item === "string"
+                  ? { nome: item.split(":")[0], descricao: item.split(":").slice(1).join(":") }
+                  : (item as Record<string, unknown>);
+              const open = expandedPilar === i;
               return (
-                <div
+                <button
                   key={i}
-                  className={`hera-card p-4 border-l-[3px] ${borderColor} flex flex-col gap-2`}
+                  type="button"
+                  onClick={() => setExpandedPilar(open ? null : i)}
+                  className={[
+                    "rounded-lg border text-left px-4 py-3 transition-all",
+                    open ? "border-primary/50 bg-primary/5 sm:col-span-2" : "border-border min-h-[72px]",
+                  ].join(" ")}
                 >
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">
-                      {p.nome ?? p.titulo ?? `Pilar ${i + 1}`}
-                    </p>
-                    {funil && (
-                      <span className="text-[10px] text-primary bg-primary/10 px-1.5 py-0.5 rounded mt-0.5 inline-block">
-                        {funil}
-                      </span>
-                    )}
-                  </div>
-                  {p.descricao && (
-                    <p className="text-xs text-muted-foreground leading-relaxed">{p.descricao}</p>
+                  <p className="text-sm font-semibold">{asString(p.nome ?? p.titulo ?? `Pilar ${i + 1}`)}</p>
+                  {open && !!asString(p.descricao) && (
+                    <p className="text-sm text-muted-foreground mt-2">{asString(p.descricao)}</p>
                   )}
-                  {exemplos.length > 0 && (
-                    <ul className="space-y-1 pt-1 border-t border-border/40">
-                      {exemplos.slice(0, 3).map((ex, j) => (
-                        <li key={j} className="text-[11px] text-muted-foreground flex gap-1.5">
-                          <span className="text-primary shrink-0">·</span>
-                          {ex}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+                </button>
               );
             })}
           </div>
-        </div>
+        </BlueprintModuleHeader>
       )}
 
-      {/* Linha Editorial */}
-      {(editorial.mix || formatos.length > 0 || editorial.cadencia || editorial.bio_cta) && (
-        <div>
-          <p className="hera-label mb-3">Linha Editorial</p>
-          <div className="hera-card p-5 space-y-4">
+      {effective === "editorial" && (
+        <BlueprintModuleHeader
+          icon={Megaphone}
+          title="Linha Editorial"
+          subtitle="Mix, formatos, cadência e bio/CTA"
+          refinePlaceholder={REFINE.editorial.placeholder}
+          onRefine={onRefineModule ? (i) => onRefineModule(REFINE.editorial.field, i) : undefined}
+          isRefining={moduleRefining("editorial")}
+          disabled={isRefining && !moduleRefining("editorial")}
+        >
+          <div className="space-y-3">
             {editorial.mix && (
-              <div>
-                <p className="hera-label mb-1.5">Mix de Conteúdo</p>
-                <p className="text-sm text-foreground leading-relaxed">{asString(editorial.mix)}</p>
-              </div>
+              <div className="rounded-lg border border-border p-3 text-sm">{asString(editorial.mix)}</div>
             )}
             {formatos.length > 0 && (
-              <div>
-                <p className="hera-label mb-2">Formatos</p>
-                <div className="flex flex-wrap gap-2">
-                  {formatos.map((f, i) => (
-                    <span
-                      key={i}
-                      className="text-xs px-3 py-1 rounded-full border border-border bg-accent/30 text-foreground"
-                    >
-                      {f}
-                    </span>
-                  ))}
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {formatos.map((f, i) => (
+                  <span key={i} className="text-xs px-3 py-1 rounded-full border border-border">
+                    {f}
+                  </span>
+                ))}
               </div>
             )}
             {editorial.cadencia && (
-              <div>
-                <p className="hera-label mb-1.5">Cadência</p>
-                <p className="text-sm text-foreground">{asString(editorial.cadencia)}</p>
-              </div>
+              <p className="text-sm text-muted-foreground">Cadência: {asString(editorial.cadencia)}</p>
             )}
             {editorial.bio_cta && (
-              <div>
-                <p className="hera-label mb-1.5">Bio / CTA Principal</p>
-                <div className="hera-card px-3 py-2.5 bg-accent/30">
-                  <p className="text-sm text-foreground">{asString(editorial.bio_cta)}</p>
-                </div>
-              </div>
+              <div className="rounded-lg bg-accent/30 p-3 text-sm">{asString(editorial.bio_cta)}</div>
             )}
           </div>
-        </div>
+        </BlueprintModuleHeader>
       )}
-    </div>
+    </BlueprintCockpit>
   );
 }

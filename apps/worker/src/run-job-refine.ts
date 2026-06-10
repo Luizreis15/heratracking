@@ -14,6 +14,12 @@ import {
 } from "./persist.js";
 import { callClaudeMessages } from "./anthropic/client.js";
 import { parseRefineBlock, parseSpinBlock, type SpinGuide } from "./parser.js";
+import {
+  FOCUS_FIELD_LABELS,
+  FOCUS_FIELD_SCHEMA,
+  isValidFocusField,
+  mergeSectionPartial,
+} from "./section-focus.js";
 
 const REFINE_MODEL = "claude-opus-4-8";
 
@@ -45,54 +51,15 @@ const SPIN_SCHEMA_HINT = `{
   "necessidade": ["4-6 perguntas que antecipam a solução"]
 }`;
 
-const COMERCIAL_FOCUS_FIELDS = new Set([
-  "funil_comercial",
-  "sdr",
-  "closer",
-  "carta_vendas",
-  "pitch_stacking",
-]);
-
-const COMERCIAL_FOCUS_SCHEMA: Record<string, string> = {
-  funil_comercial: `{ "funil_comercial": ["etapa — responsável"] }`,
-  sdr: `{ "sdr": { "criterios": [], "scripts": [] } }`,
-  closer: `{ "closer": { "roteiro_call": [], "perguntas": [] } }`,
-  carta_vendas: `{ "carta_vendas": "Use blocos [LEAD], [PAS], [MECANISMO], [PROVA], [OFERTA], [GARANTIA], [CTA], [FAQ]" }`,
-  pitch_stacking: `{ "pitch_stacking": "empilhamento de valor no fechamento" }`,
-};
-
-const COMERCIAL_FOCUS_LABELS: Record<string, string> = {
-  funil_comercial: "Funil Comercial",
-  sdr: "SDR",
-  closer: "Closer",
-  carta_vendas: "Carta de Vendas",
-  pitch_stacking: "Pitch de Fechamento",
-};
-
 type RefinePromptOpts = {
   spinGuide?: SpinGuide | null;
   comercialContext?: unknown;
   /** Quando false, refine comercial não pede SPIN na mesma resposta */
   includeSpinOutput?: boolean;
-  /** Refina apenas um módulo dentro de comercial */
   focusField?: string;
-  /** Contexto completo da seção comercial (para refine parcial) */
-  comercialFull?: Record<string, unknown>;
+  /** Contexto completo da seção (para refine parcial por módulo) */
+  sectionFull?: Record<string, unknown>;
 };
-
-function mergeComercialPartial(
-  current: Record<string, unknown>,
-  refined: Record<string, unknown>,
-  focusField: string,
-): Record<string, unknown> {
-  const merged = { ...current };
-  if (focusField in refined) {
-    merged[focusField] = refined[focusField];
-  } else {
-    merged[focusField] = refined;
-  }
-  return merged;
-}
 
 function buildRefineSystem(op: Operation): string {
   const saas = isSaasB2B(op);
@@ -165,19 +132,19 @@ ${SPIN_SCHEMA_HINT}
   }
 
   const focusField = extras?.focusField;
-  const isPartialComercial =
-    sectionKey === "comercial" && focusField && COMERCIAL_FOCUS_FIELDS.has(focusField);
+  const isPartial =
+    !!focusField && isValidFocusField(sectionKey, focusField);
 
-  const schemaHint = isPartialComercial
-    ? (COMERCIAL_FOCUS_SCHEMA[focusField] ?? "{}")
+  const schemaHint = isPartial
+    ? (FOCUS_FIELD_SCHEMA[focusField] ?? "{}")
     : (SECTION_SCHEMA_HINT[sectionKey] ?? "{}");
 
   const includeSpin =
-    sectionKey === "comercial" && extras?.includeSpinOutput !== false && !isPartialComercial;
+    sectionKey === "comercial" && extras?.includeSpinOutput !== false && !isPartial;
 
-  const focusLabel = focusField ? (COMERCIAL_FOCUS_LABELS[focusField] ?? focusField) : sectionName;
+  const focusLabel = focusField ? (FOCUS_FIELD_LABELS[focusField] ?? focusField) : sectionName;
 
-  const user = isPartialComercial
+  const user = isPartial
     ? `${operadorCtx}
 
 ## Briefing
@@ -192,8 +159,8 @@ ${instruction}
 ## Módulo atual — ${focusLabel}
 ${JSON.stringify(currentData, null, 2)}
 
-## Contexto da seção comercial (não altere outros módulos)
-${JSON.stringify(extras?.comercialFull ?? {}, null, 2)}
+## Contexto completo da seção (não altere outros módulos)
+${JSON.stringify(extras?.sectionFull ?? {}, null, 2)}
 
 ## Esquema do módulo
 ${schemaHint}
@@ -201,7 +168,7 @@ ${schemaHint}
 IMPORTANTE: Refine APENAS o campo "${focusField}". Retorne JSON com somente essa chave.
 
 Emita SOMENTE:
-<<<HERA_REFINE:comercial>>>
+<<<HERA_REFINE:${sectionKey}>>>
 ${schemaHint}
 <<<END>>>`
     : `${operadorCtx}
@@ -325,9 +292,7 @@ export async function runJobRefine(
   const { section_key, instruction, focus_field: focusField } = params;
   const sectionName = SECTION_NAMES[section_key] ?? section_key;
   const focusLabel =
-    focusField && COMERCIAL_FOCUS_LABELS[focusField]
-      ? COMERCIAL_FOCUS_LABELS[focusField]
-      : null;
+    focusField && FOCUS_FIELD_LABELS[focusField] ? FOCUS_FIELD_LABELS[focusField] : null;
 
   console.log(
     `[worker][refine] ${focusLabel ?? sectionName} — ${operationId}${focusField ? ` (focus: ${focusField})` : ""}`,
@@ -366,14 +331,14 @@ export async function runJobRefine(
       );
       totalCostUsd += costUsd;
       await persistSpinGuide(supabase, operationId, parsed as SpinGuide);
-    } else if (section_key === "comercial") {
-      const currentComercial = (currentSections.comercial ?? {}) as Record<string, unknown>;
+    } else {
+      const currentSection = (currentSections[section_key] ?? {}) as Record<string, unknown>;
       const isPartial =
-        !!focusField && COMERCIAL_FOCUS_FIELDS.has(focusField);
+        !!focusField && isValidFocusField(section_key, focusField);
 
       const promptData = isPartial
-        ? { [focusField]: currentComercial[focusField] ?? null }
-        : currentComercial;
+        ? { [focusField]: currentSection[focusField] ?? null }
+        : currentSection;
 
       const { system, user } = buildRefinePrompt(
         section_key,
@@ -382,9 +347,9 @@ export async function runJobRefine(
         promptData,
         claimed,
         {
-          includeSpinOutput: false,
+          includeSpinOutput: section_key === "comercial" ? false : undefined,
           focusField: isPartial ? focusField : undefined,
-          comercialFull: isPartial ? currentComercial : undefined,
+          sectionFull: isPartial ? currentSection : undefined,
         },
       );
       const { parsed: refined, costUsd } = await callRefineAndParse(
@@ -395,13 +360,12 @@ export async function runJobRefine(
       );
       totalCostUsd += costUsd;
 
-      const mergedComercial = isPartial
-        ? mergeComercialPartial(currentComercial, refined, focusField)
+      const merged = isPartial
+        ? mergeSectionPartial(currentSection, refined, focusField)
         : refined;
-      await mergeBlueprintSections(supabase, operationId, { comercial: mergedComercial });
+      await mergeBlueprintSections(supabase, operationId, { [section_key]: merged });
 
-      // SPIN só quando refinando a seção inteira (não módulo isolado)
-      if (!isPartial) {
+      if (section_key === "comercial" && !isPartial) {
         await appendPhaseLog(
           supabase,
           operationId,
@@ -410,7 +374,7 @@ export async function runJobRefine(
         );
         const spinPrompt = buildRefinePrompt("spin", "SPIN Selling", instruction, null, claimed, {
           spinGuide: currentSpinGuide,
-          comercialContext: mergedComercial,
+          comercialContext: merged,
         });
         try {
           const { parsed: refinedSpin, costUsd: spinCost } = await callRefineAndParse(
@@ -428,22 +392,6 @@ export async function runJobRefine(
           );
         }
       }
-    } else {
-      const { system, user } = buildRefinePrompt(
-        section_key,
-        sectionName,
-        instruction,
-        currentSections[section_key] ?? {},
-        claimed,
-      );
-      const { parsed: refined, costUsd } = await callRefineAndParse(
-        env.ANTHROPIC_API_KEY,
-        section_key,
-        system,
-        user,
-      );
-      totalCostUsd += costUsd;
-      await mergeBlueprintSections(supabase, operationId, { [section_key]: refined });
     }
 
     await appendPhaseLog(

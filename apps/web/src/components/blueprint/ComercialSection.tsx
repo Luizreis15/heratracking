@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Json } from "@/types/index";
 import { asString, asStrings, type ComercialData } from "@/lib/blueprint-types";
+import type { BlueprintSectionRefineProps } from "./cockpit/types";
 import { RefineModuleButton } from "./comercial/RefineModuleButton";
 import {
   cartaTagStyle,
@@ -18,18 +19,11 @@ import {
   parseRoteiroStep,
 } from "./comercial/parse-carta";
 
-export type ComercialFocusField =
-  | "funil_comercial"
-  | "sdr"
-  | "closer"
-  | "carta_vendas"
-  | "pitch_stacking";
-
 type ComercialModule = "funil" | "sdr" | "closer" | "carta" | "pitch";
 
 const MODULE_META: Record<
   ComercialModule,
-  { label: string; field: ComercialFocusField; icon: typeof GitBranch; refinePlaceholder: string }
+  { label: string; field: string; icon: typeof GitBranch; refinePlaceholder: string }
 > = {
   funil: {
     label: "Funil",
@@ -86,19 +80,12 @@ function parseFunilStep(item: unknown, i: number): FunilStep {
   return { etapa: `Etapa ${i + 1}`, detalhe: String(item) };
 }
 
-type ComercialSectionProps = {
-  data: Json;
-  onRefineModule?: (field: ComercialFocusField, instruction: string) => Promise<void>;
-  refiningModule?: ComercialFocusField | null;
-  isRefining?: boolean;
-};
-
 export function ComercialSection({
   data,
   onRefineModule,
   refiningModule = null,
   isRefining = false,
-}: ComercialSectionProps) {
+}: { data: Json } & BlueprintSectionRefineProps) {
   const d = (data ?? {}) as ComercialData;
   const funilSteps = Array.isArray(d.funil_comercial)
     ? d.funil_comercial.map(parseFunilStep)

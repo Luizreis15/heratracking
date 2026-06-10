@@ -8,6 +8,7 @@ import { MercadoIcpSection } from "@/components/blueprint/MercadoIcpSection";
 import { OfertaEscadaSection } from "@/components/blueprint/OfertaEscadaSection";
 import { ComercialSection } from "@/components/blueprint/ComercialSection";
 import { toastError, toastSuccess } from "@/lib/toast";
+import { FOCUS_FIELD_LABELS } from "@/lib/blueprint-focus-labels";
 import { PosicionamentoSection } from "@/components/blueprint/PosicionamentoSection";
 import { TrafegoFunilSection } from "@/components/blueprint/TrafegoFunilSection";
 import { ChecklistSection } from "@/components/blueprint/ChecklistSection";
@@ -114,15 +115,8 @@ export function BlueprintLayout() {
     if (!wasRefining || !statusChanged) return;
 
     if (operation.status === "done") {
-      const FOCUS_LABELS: Record<string, string> = {
-        funil_comercial: "Funil Comercial",
-        sdr: "SDR",
-        closer: "Closer",
-        carta_vendas: "Carta de Vendas",
-        pitch_stacking: "Pitch de Fechamento",
-      };
       const label =
-        (refiningFocus && FOCUS_LABELS[refiningFocus]) ??
+        (refiningFocus && FOCUS_FIELD_LABELS[refiningFocus]) ??
         SECTION_DEFS.find((s) => s.key === refiningSection)?.label ??
         (refiningSection === "spin" ? "SPIN Selling" : refiningSection);
       toastSuccess(`"${label}" atualizado com sucesso`);
