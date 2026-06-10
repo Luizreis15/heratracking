@@ -28,7 +28,6 @@ const SECTION_NAMES: Record<string, string> = {
   spin: "SPIN Selling",
 };
 
-/** Esquema JSON esperado por seção — alinhado ao output-contract */
 const SECTION_SCHEMA_HINT: Record<string, string> = {
   mercado_icp: `{ "resumo_mercado": [], "nivel_consciencia": 3, "icp": { "quem_e": "", "situacao_gatilho": "", "dores": [], "desejos": [], "objecoes": [], "onde_esta": [] }, "filtro_perfil": { "verde": [], "amarelo": [], "vermelho": [] } }`,
   oferta_escada: `{ "equacao_valor": "", "escada": [], "oferta_principal": { "promessa": "", "mecanismo_unico": "", "inclusos": [], "garantia": "", "bonus": [], "escassez": "" }, "precificacao": "" }`,
@@ -46,39 +45,59 @@ const SPIN_SCHEMA_HINT = `{
   "necessidade": ["4-6 perguntas que antecipam a solução"]
 }`;
 
+type RefinePromptOpts = {
+  spinGuide?: SpinGuide | null;
+  comercialContext?: unknown;
+  /** Quando false, refine comercial não pede SPIN na mesma resposta */
+  includeSpinOutput?: boolean;
+};
+
+function buildRefineSystem(op: Operation): string {
+  const saas = isSaasB2B(op);
+  return saas
+    ? `Você é o Arquiteto GTM HERA. Refina seções do Blueprint Operacional de um SaaS B2B.
+
+FORMATO OBRIGATÓRIO — copie exatamente os delimitadores:
+<<<HERA_REFINE:chave>>>
+{ JSON válido }
+<<<END>>>
+
+REGRAS:
+1. JSON estrito (aspas duplas, sem vírgula final, sem comentários).
+2. Mantenha as MESMAS chaves de primeiro nível da seção.
+3. Zero texto fora dos delimitadores. Zero markdown. Zero \`\`\`json.`
+    : `Você é o Arquiteto de Agência HERA. Refina seções do Blueprint Operacional.
+
+FORMATO OBRIGATÓRIO — copie exatamente os delimitadores:
+<<<HERA_REFINE:chave>>>
+{ JSON válido }
+<<<END>>>
+
+REGRAS:
+1. JSON estrito (aspas duplas, sem vírgula final, sem comentários).
+2. Mantenha as MESMAS chaves de primeiro nível da seção.
+3. Zero texto fora dos delimitadores. Zero markdown. Zero \`\`\`json.`;
+}
+
 function buildRefinePrompt(
   sectionKey: string,
   sectionName: string,
   instruction: string,
   currentData: unknown,
   op: Operation,
-  extras?: {
-    spinGuide?: SpinGuide | null;
-    comercialContext?: unknown;
-  },
+  extras?: RefinePromptOpts,
 ): { system: string; user: string } {
-  const saas = isSaasB2B(op);
   const operadorCtx = buildOperadorB2BContext(op, null);
-
-  const system = saas
-    ? `Você é o Arquiteto GTM HERA. Refina seções do Blueprint Operacional de um SaaS B2B.
-
-REGRAS OBRIGATÓRIAS:
-1. Use EXATAMENTE o formato de blocos <<<HERA_REFINE:chave>>> ... <<<END>>> (e <<<HERA_SPIN>>> quando pedido).
-2. Mantenha as MESMAS chaves JSON da seção — não remova chaves de primeiro nível.
-3. Aplique a instrução do gestor com precisão.
-4. Respeite compliance do briefing.
-5. NÃO escreva texto fora dos blocos delimitados.`
-    : `Você é o Arquiteto de Agência HERA. Refina seções do Blueprint Operacional.
-
-REGRAS OBRIGATÓRIAS:
-1. Use EXATAMENTE o formato de blocos <<<HERA_REFINE:chave>>> ... <<<END>>> (e <<<HERA_SPIN>>> quando pedido).
-2. Mantenha as MESMAS chaves JSON da seção — não remova chaves de primeiro nível.
-3. Aplique a instrução do gestor com precisão.
-4. Respeite compliance do briefing.
-5. NÃO escreva texto fora dos blocos delimitados.`;
+  const system = buildRefineSystem(op);
 
   if (sectionKey === "spin") {
+    const spinSystem = `${system}
+
+Para SPIN Selling use:
+<<<HERA_SPIN>>>
+{ JSON válido }
+<<<END>>>`;
+
     const user = `${operadorCtx}
 
 ## Briefing
@@ -95,31 +114,16 @@ ${JSON.stringify(extras?.spinGuide ?? { situacao: [], problema: [], implicacao: 
 ## Contexto comercial (insumo)
 ${JSON.stringify(extras?.comercialContext ?? {}, null, 2)}
 
-## Tarefa
-Refine APENAS o guia SPIN Selling. Perguntas específicas do nicho — nunca genéricas.
-
-Emita SOMENTE:
+Emita SOMENTE este bloco (substitua o JSON pelo guia refinado):
 <<<HERA_SPIN>>>
 ${SPIN_SCHEMA_HINT}
 <<<END>>>`;
 
-    return { system, user };
+    return { system: spinSystem, user };
   }
 
   const schemaHint = SECTION_SCHEMA_HINT[sectionKey] ?? "{}";
-  const isComercial = sectionKey === "comercial";
-
-  const spinBlock = isComercial
-    ? `
-
-## SPIN Selling Guide atual
-${JSON.stringify(extras?.spinGuide ?? { situacao: [], problema: [], implicacao: [], necessidade: [] }, null, 2)}
-
-Após o bloco da seção comercial, emita OBRIGATORIAMENTE o SPIN refinado:
-<<<HERA_SPIN>>>
-${SPIN_SCHEMA_HINT}
-<<<END>>>`
-    : "";
+  const includeSpin = sectionKey === "comercial" && extras?.includeSpinOutput !== false;
 
   const user = `${operadorCtx}
 
@@ -136,14 +140,88 @@ ${instruction}
 ${JSON.stringify(currentData, null, 2)}
 
 ## Esquema esperado (referência de chaves)
-${schemaHint}${spinBlock}
+${schemaHint}
 
-Emita SOMENTE:
+Emita SOMENTE este bloco (substitua o JSON pelo conteúdo refinado):
 <<<HERA_REFINE:${sectionKey}>>>
-{ JSON refinado completo da seção }
-<<<END>>>${isComercial ? "\n<<<HERA_SPIN>>>\n{ JSON do SPIN }\n<<<END>>>" : ""}`;
+${schemaHint}
+<<<END>>>${includeSpin ? `\n\nDepois, em outro bloco separado:\n<<<HERA_SPIN>>>\n${SPIN_SCHEMA_HINT}\n<<<END>>>` : ""}`;
 
   return { system, user };
+}
+
+function buildRepairPrompt(sectionKey: string, failedText: string): string {
+  const schemaHint =
+    sectionKey === "spin" ? SPIN_SCHEMA_HINT : (SECTION_SCHEMA_HINT[sectionKey] ?? "{}");
+  const marker =
+    sectionKey === "spin" ? "<<<HERA_SPIN>>>" : `<<<HERA_REFINE:${sectionKey}>>>`;
+
+  return `Sua resposta anterior não pôde ser parseada. Corrija e responda APENAS com UM bloco válido.
+
+Resposta anterior (trecho):
+${failedText.slice(0, 1200)}
+
+Formato EXATO exigido:
+${marker}
+${schemaHint}
+<<<END>>>
+
+Sem texto antes ou depois. Sem markdown. JSON válido.`;
+}
+
+async function callRefineAndParse(
+  apiKey: string,
+  sectionKey: string,
+  system: string,
+  user: string,
+): Promise<{ parsed: Record<string, unknown> | SpinGuide; text: string; costUsd: number }> {
+  let totalCost = 0;
+
+  const run = async (promptUser: string) => {
+    const { text, costUsd } = await callClaudeMessages(apiKey, {
+      model: REFINE_MODEL,
+      maxTokens: 8192,
+      system,
+      user: promptUser,
+      timeoutMs: 180_000,
+    });
+    totalCost += costUsd;
+    return text;
+  };
+
+  let text = await run(user);
+  console.log(`[worker][refine] resposta (${text.length} chars):`, text.slice(0, 500));
+
+  if (sectionKey === "spin") {
+    let spin = parseSpinBlock(text, false);
+    if (!spin) {
+      console.warn(`[worker][refine] retry SPIN após parse falhou`);
+      text = await run(buildRepairPrompt("spin", text));
+      spin = parseSpinBlock(text, false);
+    }
+    if (!spin) {
+      console.error(`[worker][refine] parse SPIN falhou. Resposta:\n${text}`);
+      throw new Error("Bloco <<<HERA_SPIN>>> ausente ou JSON inválido na resposta");
+    }
+    return { parsed: spin, text, costUsd: totalCost };
+  }
+
+  let refined = parseRefineBlock(text, sectionKey);
+  if (!refined) {
+    console.warn(`[worker][refine] retry ${sectionKey} após parse falhou`);
+    text = await run(buildRepairPrompt(sectionKey, text));
+    console.log(`[worker][refine] retry resposta (${text.length} chars):`, text.slice(0, 500));
+    refined = parseRefineBlock(text, sectionKey);
+  }
+
+  if (!refined) {
+    console.error(`[worker][refine] parse falhou. Resposta:\n${text}`);
+    throw new Error(
+      `Bloco <<<HERA_REFINE:${sectionKey}>>> ausente ou JSON inválido na resposta`,
+    );
+  }
+
+  return { parsed: refined, text, costUsd: totalCost };
 }
 
 export async function runJobRefine(
@@ -188,61 +266,82 @@ export async function runJobRefine(
 
     const currentSections = (bp?.sections ?? {}) as Record<string, unknown>;
     const currentSpinGuide = (bp?.spin_guide ?? null) as SpinGuide | null;
-
-    const { system, user } =
-      section_key === "spin"
-        ? buildRefinePrompt(section_key, sectionName, instruction, null, claimed, {
-            spinGuide: currentSpinGuide,
-            comercialContext: currentSections.comercial ?? {},
-          })
-        : buildRefinePrompt(
-            section_key,
-            sectionName,
-            instruction,
-            currentSections[section_key] ?? {},
-            claimed,
-            {
-              spinGuide: currentSpinGuide,
-            },
-          );
-
-    const { text, costUsd } = await callClaudeMessages(env.ANTHROPIC_API_KEY, {
-      model: REFINE_MODEL,
-      maxTokens: 8192,
-      system,
-      user,
-      timeoutMs: 180_000,
-    });
-
-    console.log(`[worker][refine] resposta (${text.length} chars):`, text.slice(0, 500));
+    let totalCostUsd = 0;
 
     if (section_key === "spin") {
-      const refinedSpin = parseSpinBlock(text, false);
-      if (!refinedSpin) {
-        throw new Error("Bloco <<<HERA_SPIN>>> ausente ou JSON inválido na resposta");
-      }
-      await persistSpinGuide(supabase, operationId, refinedSpin);
-    } else {
-      const refined = parseRefineBlock(text, section_key);
-      if (!refined) {
-        console.error(`[worker][refine] parse falhou. Resposta:\n${text}`);
-        throw new Error(
-          `Bloco <<<HERA_REFINE:${section_key}>>> ausente ou JSON inválido na resposta`,
+      const { system, user } = buildRefinePrompt(section_key, sectionName, instruction, null, claimed, {
+        spinGuide: currentSpinGuide,
+        comercialContext: currentSections.comercial ?? {},
+      });
+      const { parsed, costUsd } = await callRefineAndParse(
+        env.ANTHROPIC_API_KEY,
+        "spin",
+        system,
+        user,
+      );
+      totalCostUsd += costUsd;
+      await persistSpinGuide(supabase, operationId, parsed as SpinGuide);
+    } else if (section_key === "comercial") {
+      // Chamada 1: só comercial (resposta mais simples = parse confiável)
+      const { system, user } = buildRefinePrompt(
+        section_key,
+        sectionName,
+        instruction,
+        currentSections.comercial ?? {},
+        claimed,
+        { includeSpinOutput: false },
+      );
+      const { parsed: refined, costUsd } = await callRefineAndParse(
+        env.ANTHROPIC_API_KEY,
+        section_key,
+        system,
+        user,
+      );
+      totalCostUsd += costUsd;
+      await mergeBlueprintSections(supabase, operationId, { comercial: refined });
+
+      // Chamada 2: SPIN alinhado à mesma instrução
+      await appendPhaseLog(
+        supabase,
+        operationId,
+        "blueprint",
+        `🔧 Atualizando guia SPIN...`,
+      );
+      const spinPrompt = buildRefinePrompt("spin", "SPIN Selling", instruction, null, claimed, {
+        spinGuide: currentSpinGuide,
+        comercialContext: refined,
+      });
+      try {
+        const { parsed: refinedSpin, costUsd: spinCost } = await callRefineAndParse(
+          env.ANTHROPIC_API_KEY,
+          "spin",
+          spinPrompt.system,
+          spinPrompt.user,
+        );
+        totalCostUsd += spinCost;
+        await persistSpinGuide(supabase, operationId, refinedSpin as SpinGuide);
+        console.log(`[worker][refine] SPIN guide atualizado — ${operationId}`);
+      } catch (spinErr) {
+        console.warn(
+          `[worker][refine] comercial OK mas SPIN falhou: ${spinErr instanceof Error ? spinErr.message : spinErr}`,
         );
       }
+    } else {
+      const { system, user } = buildRefinePrompt(
+        section_key,
+        sectionName,
+        instruction,
+        currentSections[section_key] ?? {},
+        claimed,
+      );
+      const { parsed: refined, costUsd } = await callRefineAndParse(
+        env.ANTHROPIC_API_KEY,
+        section_key,
+        system,
+        user,
+      );
+      totalCostUsd += costUsd;
       await mergeBlueprintSections(supabase, operationId, { [section_key]: refined });
-
-      if (section_key === "comercial") {
-        const refinedSpin = parseSpinBlock(text, false);
-        if (refinedSpin) {
-          await persistSpinGuide(supabase, operationId, refinedSpin);
-          console.log(`[worker][refine] SPIN guide atualizado — ${operationId}`);
-        } else {
-          console.warn(
-            `[worker][refine] comercial refinado mas HERA_SPIN ausente — seção salva, SPIN mantido`,
-          );
-        }
-      }
     }
 
     await appendPhaseLog(
@@ -252,7 +351,7 @@ export async function runJobRefine(
       `✅ "${sectionName}" refinado com sucesso`,
     );
 
-    if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
+    if (totalCostUsd) await incrementOperationCost(supabase, operationId, totalCostUsd);
     await markOperationDone(supabase, operationId, undefined, {
       keepPhase: "blueprint",
       restoreJobMode: true,

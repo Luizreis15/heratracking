@@ -270,6 +270,33 @@ ${JSON.stringify(data)}
     expect(parseRefineBlock(text, "mercado_icp")).toBeNull();
   });
 
+  it("parses JSON com markdown dentro do bloco", () => {
+    const data = {
+      funil_comercial: ["Lead → Demo"],
+      sdr: { criterios: [], scripts: [] },
+      closer: { roteiro_call: [], perguntas: [] },
+      carta_vendas: "x",
+      pitch_stacking: "y",
+    };
+    const text = `<<<HERA_REFINE:comercial>>>
+\`\`\`json
+${JSON.stringify(data)}
+\`\`\`
+<<<END>>>`;
+    expect(parseRefineBlock(text, "comercial")).toEqual(data);
+  });
+
+  it("parses JSON aninhado via brace-match (sem delimitadores)", () => {
+    const data = {
+      funil_comercial: ["A → B"],
+      sdr: { criterios: ["ICP"], scripts: [] },
+      closer: { roteiro_call: [], perguntas: [] },
+      carta_vendas: "",
+      pitch_stacking: "",
+    };
+    expect(parseRefineBlock(JSON.stringify(data), "comercial")).toEqual(data);
+  });
+
   it("returns null for invalid JSON", () => {
     const text = `<<<HERA_REFINE:comercial>>>
 { bad json

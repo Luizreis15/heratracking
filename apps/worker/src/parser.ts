@@ -96,28 +96,27 @@ export function parseSpinBlock(
   const match = SPIN_BLOCK_RE.exec(text);
   if (!match?.[1]) return null;
 
-  try {
-    const parsed = JSON.parse(match[1].trim()) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    const obj = parsed as Record<string, unknown>;
-    if (
-      !Array.isArray(obj.situacao) ||
-      !Array.isArray(obj.problema) ||
-      !Array.isArray(obj.implicacao) ||
-      !Array.isArray(obj.necessidade)
-    ) {
-      return null;
-    }
-    return {
-      situacao: (obj.situacao as unknown[]).filter((s): s is string => typeof s === "string"),
-      problema: (obj.problema as unknown[]).filter((s): s is string => typeof s === "string"),
-      implicacao: (obj.implicacao as unknown[]).filter((s): s is string => typeof s === "string"),
-      necessidade: (obj.necessidade as unknown[]).filter((s): s is string => typeof s === "string"),
-    };
-  } catch {
+  const parsed = parseJsonObjectLoose(match[1]);
+  if (!parsed) {
     console.warn("[worker] JSON inválido no bloco HERA_SPIN");
     return null;
   }
+  if (
+    !Array.isArray(parsed.situacao) ||
+    !Array.isArray(parsed.problema) ||
+    !Array.isArray(parsed.implicacao) ||
+    !Array.isArray(parsed.necessidade)
+  ) {
+    return null;
+  }
+  return {
+    situacao: (parsed.situacao as unknown[]).filter((s): s is string => typeof s === "string"),
+    problema: (parsed.problema as unknown[]).filter((s): s is string => typeof s === "string"),
+    implicacao: (parsed.implicacao as unknown[]).filter((s): s is string => typeof s === "string"),
+    necessidade: (parsed.necessidade as unknown[]).filter(
+      (s): s is string => typeof s === "string",
+    ),
+  };
 }
 
 export function parseIntelBlock(text: string): IntelEventInput[] | null {
@@ -188,64 +187,129 @@ export function parseContentBlock(text: string): ContentItem[] | null {
   }
 }
 
-export function parseRefineBlock(
-  text: string,
-  sectionKey: string,
-): Record<string, unknown> | null {
-  // Primary: delimited block <<<HERA_REFINE:key>>>...<<<END>>>
-  const re = new RegExp(
-    `<<<HERA_REFINE:${sectionKey}>>>\\s*([\\s\\S]*?)\\s*<<<END>>>`,
-    "g",
-  );
-  const match = re.exec(text);
-  if (match?.[1]) {
+/** Remove cercas markdown e espaços extras ao redor do JSON */
+export function stripMarkdownFences(text: string): string {
+  return text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "")
+    .trim();
+}
+
+/** Extrai o primeiro objeto JSON balanceado (respeita strings escapadas) */
+export function extractBalancedJsonSubstring(text: string, fromIndex = 0): string | null {
+  const start = text.indexOf("{", fromIndex);
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function repairTrailingCommas(json: string): string {
+  return json.replace(/,(\s*[}\]])/g, "$1");
+}
+
+/** Tenta parsear objeto JSON com tolerância a markdown e vírgulas finais */
+export function parseJsonObjectLoose(raw: string): Record<string, unknown> | null {
+  const cleaned = stripMarkdownFences(raw.trim());
+  const candidates = [
+    cleaned,
+    extractBalancedJsonSubstring(cleaned) ?? "",
+    repairTrailingCommas(cleaned),
+    extractBalancedJsonSubstring(repairTrailingCommas(cleaned)) ?? "",
+  ].filter((s) => s.length > 0);
+
+  for (const candidate of candidates) {
     try {
-      const parsed = JSON.parse(match[1].trim()) as unknown;
+      const parsed = JSON.parse(candidate) as unknown;
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         return parsed as Record<string, unknown>;
       }
     } catch {
-      console.warn(`[worker] JSON inválido no bloco HERA_REFINE:${sectionKey}`);
+      /* tenta próximo */
+    }
+  }
+  return null;
+}
+
+export function parseRefineBlock(
+  text: string,
+  sectionKey: string,
+): Record<string, unknown> | null {
+  const ownMarker = `<<<HERA_REFINE:${sectionKey}>>>`;
+  const hasOwnBlock = text.includes(ownMarker);
+  const hasAnyBlock = /<<<HERA_REFINE:\w+>>>/.test(text);
+
+  // Primary: bloco delimitado (para até o próximo marcador HERA ou END)
+  const blockRe = new RegExp(
+    `<<<HERA_REFINE:${sectionKey}>>>\\s*([\\s\\S]*?)(?=<<<END>>>|<<<HERA_[A-Z_]+>>>|$)`,
+    "i",
+  );
+  const blockMatch = blockRe.exec(text);
+  if (blockMatch?.[1]) {
+    const parsed = parseJsonObjectLoose(blockMatch[1]);
+    if (parsed) return parsed;
+    console.warn(`[worker] JSON inválido no bloco HERA_REFINE:${sectionKey}`);
+  }
+
+  // Bloco sem <<<END>>> explícito (modelo às vezes omite)
+  const looseBlockRe = new RegExp(
+    `<<<HERA_REFINE:${sectionKey}>>>\\s*([\\s\\S]+)`,
+    "i",
+  );
+  const looseMatch = looseBlockRe.exec(text);
+  if (looseMatch?.[1] && !blockMatch) {
+    const parsed = parseJsonObjectLoose(looseMatch[1]);
+    if (parsed) {
+      console.warn(`[worker] parseRefineBlock: bloco sem END para ${sectionKey}`);
+      return parsed;
     }
   }
 
-  // Se o texto contém um bloco HERA_REFINE para OUTRA chave (não a nossa), não fazer fallback.
-  const hasOwnBlock = new RegExp(`<<<HERA_REFINE:${sectionKey}>>>`).test(text);
-  const hasAnyBlock = /<<<HERA_REFINE:\w+>>>/.test(text);
   if (hasAnyBlock && !hasOwnBlock) return null;
 
-  // Fallback: markdown JSON block ```json ... ```
-  const mdMatch = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/.exec(text);
+  // Fallback: primeiro bloco markdown
+  const mdMatch = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
   if (mdMatch?.[1]) {
-    try {
-      const parsed = JSON.parse(mdMatch[1].trim()) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        console.warn(`[worker] parseRefineBlock: usando fallback markdown para ${sectionKey}`);
-        return parsed as Record<string, unknown>;
-      }
-    } catch { /* ignora */ }
+    const parsed = parseJsonObjectLoose(mdMatch[1]);
+    if (parsed) {
+      console.warn(`[worker] parseRefineBlock: fallback markdown para ${sectionKey}`);
+      return parsed;
+    }
   }
 
-  // Last resort: brace-matching para extrair o primeiro objeto JSON completo
-  const start = text.indexOf("{");
-  if (start >= 0) {
-    let depth = 0;
-    let end = -1;
-    for (let i = start; i < text.length; i++) {
-      if (text[i] === "{") depth++;
-      else if (text[i] === "}") {
-        depth--;
-        if (depth === 0) { end = i; break; }
-      }
-    }
-    if (end >= 0) {
-      try {
-        const parsed = JSON.parse(text.slice(start, end + 1)) as unknown;
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          console.warn(`[worker] parseRefineBlock: usando fallback brace-match para ${sectionKey}`);
-          return parsed as Record<string, unknown>;
-        }
-      } catch { /* ignora */ }
+  // Last resort: brace-match após o marcador (ou do início)
+  const searchFrom = hasOwnBlock ? text.indexOf(ownMarker) : 0;
+  const jsonStr = extractBalancedJsonSubstring(text, searchFrom);
+  if (jsonStr) {
+    const parsed = parseJsonObjectLoose(jsonStr);
+    if (parsed) {
+      console.warn(`[worker] parseRefineBlock: fallback brace-match para ${sectionKey}`);
+      return parsed;
     }
   }
 
