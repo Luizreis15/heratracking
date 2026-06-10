@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useOutletContext, useParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Loader2, Sparkles, X } from "lucide-react";
+import { ComercialSection, type ComercialFocusField } from "@/components/blueprint/ComercialSection";
 import { SpinPanel } from "@/components/blueprint/SpinPanel";
 import { SECTION_DEFS, type BlueprintLayoutContext } from "./BlueprintView";
 import type { Json } from "@/types/index";
@@ -14,6 +15,7 @@ export function BlueprintSectionPage() {
     makeRefineHandler,
     isAnyRefining,
     refiningSection,
+    refiningFocus,
     refineErrored,
     spinGuide,
     filledSections,
@@ -106,8 +108,8 @@ export function BlueprintSectionPage() {
               {def.key === "comercial" && (
                 <>
                   {" "}
-                  O guia <strong>SPIN Selling</strong> abaixo também é atualizado junto com o processo
-                  comercial.
+                  Cada módulo (Funil, SDR, Closer, Carta, Pitch) tem botão <strong>Ajustar</strong>{" "}
+                  próprio. O ajuste da seção inteira também atualiza o SPIN.
                 </>
               )}
             </p>
@@ -159,7 +161,18 @@ export function BlueprintSectionPage() {
 
       {/* Section content — always visible, no accordion */}
       <div className="hera-card px-6 pb-10 pt-6 hera-prose">
-        {def.render(data, operationId)}
+        {def.key === "comercial" ? (
+          <ComercialSection
+            data={data}
+            onRefineModule={(field, instr) =>
+              makeRefineHandler("comercial", { focusField: field })(instr)
+            }
+            refiningModule={(refiningFocus as ComercialFocusField | null) ?? null}
+            isRefining={isSectionRefining}
+          />
+        ) : (
+          def.render(data, operationId)
+        )}
         {def.key === "comercial" && (
           <SpinPanel
             spinGuide={spinGuide}

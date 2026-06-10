@@ -60,10 +60,18 @@ export const SECTION_DEFS: SectionDef[] = [
   },
 ];
 
+export type RefineHandlerOpts = {
+  focusField?: string;
+};
+
 export type BlueprintLayoutContext = OperationContext & {
-  makeRefineHandler: (sectionKey: string) => (instruction: string) => Promise<void>;
+  makeRefineHandler: (
+    sectionKey: string,
+    opts?: RefineHandlerOpts,
+  ) => (instruction: string) => Promise<void>;
   isAnyRefining: boolean;
   refiningSection: string | null;
+  refiningFocus: string | null;
   refineErrored: boolean;
   spinGuide: Json | null;
   filledSections: SectionDef[];
@@ -78,6 +86,7 @@ export function BlueprintLayout() {
   const { sectionKey } = useParams<{ sectionKey?: string }>();
 
   const [refiningSection, setRefiningSection] = useState<string | null>(null);
+  const [refiningFocus, setRefiningFocus] = useState<string | null>(null);
   const prevStatusRef = useRef(operation.status);
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -105,18 +114,28 @@ export function BlueprintLayout() {
     if (!wasRefining || !statusChanged) return;
 
     if (operation.status === "done") {
+      const FOCUS_LABELS: Record<string, string> = {
+        funil_comercial: "Funil Comercial",
+        sdr: "SDR",
+        closer: "Closer",
+        carta_vendas: "Carta de Vendas",
+        pitch_stacking: "Pitch de Fechamento",
+      };
       const label =
+        (refiningFocus && FOCUS_LABELS[refiningFocus]) ??
         SECTION_DEFS.find((s) => s.key === refiningSection)?.label ??
         (refiningSection === "spin" ? "SPIN Selling" : refiningSection);
       toastSuccess(`"${label}" atualizado com sucesso`);
       setRefiningSection(null);
+      setRefiningFocus(null);
       void queryClient.invalidateQueries({ queryKey: ["blueprint", operationId] });
       void queryClient.invalidateQueries({ queryKey: ["operation", operationId] });
     } else if (operation.status === "error") {
       toastError(operation.error ?? "Refinamento falhou — veja logs do worker");
       setRefiningSection(null);
+      setRefiningFocus(null);
     }
-  }, [operation.status, operation.error, refiningSection, operationId, queryClient]);
+  }, [operation.status, operation.error, refiningSection, refiningFocus, operationId, queryClient]);
 
   useEffect(() => {
     if (!exportOpen) return;
@@ -130,20 +149,28 @@ export function BlueprintLayout() {
   }, [exportOpen]);
 
   const makeRefineHandler = useCallback(
-    (key: string) => async (instruction: string) => {
+    (key: string, opts?: RefineHandlerOpts) => async (instruction: string) => {
       setRefiningSection(key);
+      setRefiningFocus(opts?.focusField ?? null);
+      const refineParams: Record<string, string> = {
+        section_key: key,
+        instruction,
+      };
+      if (opts?.focusField) refineParams.focus_field = opts.focusField;
+
       const { error } = await supabase
         .from("operations")
         .update({
           job_mode: "refine_section",
           status: "queued",
-          refine_params: { section_key: key, instruction },
+          refine_params: refineParams,
           error: null,
           finished_at: null,
         })
         .eq("id", operationId);
       if (error) {
         setRefiningSection(null);
+        setRefiningFocus(null);
         throw new Error(error.message);
       }
       void queryClient.invalidateQueries({ queryKey: ["operation", operationId] });
@@ -186,6 +213,7 @@ export function BlueprintLayout() {
     makeRefineHandler,
     isAnyRefining,
     refiningSection,
+    refiningFocus,
     refineErrored,
     spinGuide,
     filledSections,

@@ -1,9 +1,67 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Check } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  FileText,
+  GitBranch,
+  Layers,
+  Phone,
+  Users,
+} from "lucide-react";
 import type { Json } from "@/types/index";
 import { asString, asStrings, type ComercialData } from "@/lib/blueprint-types";
+import { RefineModuleButton } from "./comercial/RefineModuleButton";
+import {
+  cartaTagStyle,
+  parseCartaVendas,
+  parseObjectionItem,
+  parseRoteiroStep,
+} from "./comercial/parse-carta";
 
-// ── helpers ───────────────────────────────────────────────────────────────
+export type ComercialFocusField =
+  | "funil_comercial"
+  | "sdr"
+  | "closer"
+  | "carta_vendas"
+  | "pitch_stacking";
+
+type ComercialModule = "funil" | "sdr" | "closer" | "carta" | "pitch";
+
+const MODULE_META: Record<
+  ComercialModule,
+  { label: string; field: ComercialFocusField; icon: typeof GitBranch; refinePlaceholder: string }
+> = {
+  funil: {
+    label: "Funil",
+    field: "funil_comercial",
+    icon: GitBranch,
+    refinePlaceholder: "Ex.: adicionar etapa de demo técnica entre qualificação e proposta",
+  },
+  sdr: {
+    label: "SDR",
+    field: "sdr",
+    icon: Users,
+    refinePlaceholder: "Ex.: critérios mais rígidos para ICP industrial acima de 200 funcionários",
+  },
+  closer: {
+    label: "Closer",
+    field: "closer",
+    icon: Phone,
+    refinePlaceholder: "Ex.: roteiro mais curto (30 min) com foco em ROI e compliance",
+  },
+  carta: {
+    label: "Carta",
+    field: "carta_vendas",
+    icon: FileText,
+    refinePlaceholder: "Ex.: reescrever carta em tom consultivo B2B, sem promessa de resultado",
+  },
+  pitch: {
+    label: "Pitch",
+    field: "pitch_stacking",
+    icon: Layers,
+    refinePlaceholder: "Ex.: stacking com 3 camadas — plataforma, suporte, integração ERP",
+  },
+};
 
 function toStrings(val: unknown): string[] {
   if (Array.isArray(val)) return asStrings(val);
@@ -28,289 +86,403 @@ function parseFunilStep(item: unknown, i: number): FunilStep {
   return { etapa: `Etapa ${i + 1}`, detalhe: String(item) };
 }
 
-type SpinCategory = "situacao" | "problema" | "implicacao" | "necessidade" | "fechamento" | "other";
-
-function detectSpinCategory(q: string): SpinCategory {
-  const lower = q.toLowerCase();
-  if (lower.startsWith("situação:") || lower.startsWith("situacao:")) return "situacao";
-  if (lower.startsWith("problema:")) return "problema";
-  if (lower.startsWith("implicação:") || lower.startsWith("implicacao:")) return "implicacao";
-  if (lower.startsWith("necessidade:")) return "necessidade";
-  if (lower.startsWith("fechamento:")) return "fechamento";
-  return "other";
-}
-
-function cleanQuestionText(q: string): string {
-  return q.replace(/^(situação|situacao|problema|implicação|implicacao|necessidade|fechamento):\s*/i, "").trim();
-}
-
-// ── sub-components ────────────────────────────────────────────────────────
-
-function StepCard({ number, text }: { number: number; text: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={() => setOpen((o) => !o)}
-      className="hera-card w-full text-left px-4 py-3 hover:border-primary/30 transition-colors"
-    >
-      <div className="flex items-start gap-3">
-        <span className="hera-mono text-xs font-bold text-primary shrink-0 mt-0.5 w-6 text-right">
-          {String(number).padStart(2, "0")}
-        </span>
-        <p
-          className={[
-            "text-sm text-foreground leading-relaxed flex-1 text-left",
-            !open ? "line-clamp-2" : "",
-          ].join(" ")}
-        >
-          {text}
-        </p>
-        <ChevronDown
-          className={`h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </div>
-    </button>
-  );
-}
-
-const SPIN_CONFIG: Record<
-  SpinCategory,
-  { label: string; color: string; border: string; bg: string }
-> = {
-  situacao:    { label: "S — SITUAÇÃO",    color: "text-blue-400",  border: "border-blue-500/30",  bg: "bg-blue-500/5"  },
-  problema:    { label: "P — PROBLEMA",    color: "text-amber-400", border: "border-amber-500/30", bg: "bg-amber-500/5" },
-  implicacao:  { label: "I — IMPLICAÇÃO",  color: "text-red-400",   border: "border-red-500/30",   bg: "bg-red-500/5"   },
-  necessidade: { label: "N — NECESSIDADE", color: "text-teal-400",  border: "border-teal-500/30",  bg: "bg-teal-500/5"  },
-  fechamento:  { label: "FECHAMENTO",      color: "text-primary",   border: "border-primary/30",   bg: "bg-primary/5"   },
-  other:       { label: "PERGUNTAS",       color: "text-foreground",border: "border-border",        bg: ""               },
+type ComercialSectionProps = {
+  data: Json;
+  onRefineModule?: (field: ComercialFocusField, instruction: string) => Promise<void>;
+  refiningModule?: ComercialFocusField | null;
+  isRefining?: boolean;
 };
 
-function QuestionGroup({
-  category,
-  questions,
-}: {
-  category: SpinCategory;
-  questions: string[];
-}) {
-  const cfg = SPIN_CONFIG[category];
-  return (
-    <div className={`rounded-lg border p-4 space-y-2 ${cfg.border} ${cfg.bg}`}>
-      <p className={`hera-mono text-[10px] font-bold uppercase tracking-wider mb-3 ${cfg.color}`}>
-        {cfg.label}
-      </p>
-      {questions.map((q, i) => (
-        <div key={i} className="flex gap-2 items-start">
-          <span className={`hera-mono text-[10px] font-semibold shrink-0 mt-0.5 ${cfg.color}`}>
-            {String(i + 1).padStart(2, "0")}
-          </span>
-          <p className="text-sm text-foreground/90 leading-relaxed italic">
-            &ldquo;{cleanQuestionText(q)}&rdquo;
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Accordion({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="hera-card overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-accent/30 transition-colors"
-      >
-        <span className="text-sm font-medium text-foreground">{title}</span>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open && (
-        <div className="px-4 pb-4 border-t border-border/40 pt-3 text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── main ──────────────────────────────────────────────────────────────────
-
-export function ComercialSection({ data }: { data: Json }) {
+export function ComercialSection({
+  data,
+  onRefineModule,
+  refiningModule = null,
+  isRefining = false,
+}: ComercialSectionProps) {
   const d = (data ?? {}) as ComercialData;
-  const funilSteps: FunilStep[] = Array.isArray(d.funil_comercial)
+  const funilSteps = Array.isArray(d.funil_comercial)
     ? d.funil_comercial.map(parseFunilStep)
     : [];
   const sdrCriterios = toStrings(d.sdr?.criterios);
   const sdrScripts = toStrings(d.sdr?.scripts);
   const closerRoteiro = toStrings(d.closer?.roteiro_call);
   const closerPerguntas = toStrings(d.closer?.perguntas);
+  const cartaRaw = d.carta_vendas ? asString(d.carta_vendas) : "";
+  const pitchRaw = d.pitch_stacking ? asString(d.pitch_stacking) : "";
+  const cartaParsed = parseCartaVendas(cartaRaw);
 
-  const [selectedStage, setSelectedStage] = useState<number | null>(null);
+  const modules: ComercialModule[] = [];
+  if (funilSteps.length) modules.push("funil");
+  if (sdrCriterios.length || sdrScripts.length) modules.push("sdr");
+  if (closerRoteiro.length || closerPerguntas.length) modules.push("closer");
+  if (cartaRaw) modules.push("carta");
+  if (pitchRaw) modules.push("pitch");
 
-  const questionsByCategory = closerPerguntas.reduce<Record<SpinCategory, string[]>>(
-    (acc, q) => {
-      acc[detectSpinCategory(q)].push(q);
-      return acc;
-    },
-    { situacao: [], problema: [], implicacao: [], necessidade: [], fechamento: [], other: [] },
-  );
-  const hasGroupedQuestions = Object.values(questionsByCategory).some((a) => a.length > 0);
+  const [activeModule, setActiveModule] = useState<ComercialModule | null>(null);
+  const effectiveModule =
+    activeModule && modules.includes(activeModule) ? activeModule : (modules[0] ?? "funil");
+  const [selectedFunil, setSelectedFunil] = useState<number | null>(null);
+  const [expandedCarta, setExpandedCarta] = useState<number | null>(0);
+  const [expandedObjection, setExpandedObjection] = useState<number | null>(null);
+  const [expandedRoteiro, setExpandedRoteiro] = useState<number | null>(0);
+
+  const stats = [
+    { label: "Etapas funil", value: funilSteps.length },
+    { label: "Critérios SDR", value: sdrCriterios.length },
+    { label: "Roteiro call", value: closerRoteiro.length },
+    { label: "Blocos carta", value: cartaParsed.blocks.length },
+    { label: "Objeções", value: closerPerguntas.length },
+  ];
+
+  function moduleRefining(mod: ComercialModule) {
+    return isRefining && refiningModule === MODULE_META[mod].field;
+  }
+
+  function ModuleShell({
+    mod,
+    title,
+    subtitle,
+    children,
+  }: {
+    mod: ComercialModule;
+    title: string;
+    subtitle: string;
+    children: React.ReactNode;
+  }) {
+    const meta = MODULE_META[mod];
+    const Icon = meta.icon;
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/50 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+              <Icon className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-foreground">{title}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+            </div>
+          </div>
+          {onRefineModule && (
+            <RefineModuleButton
+              label="Ajustar"
+              moduleName={title}
+              placeholder={meta.refinePlaceholder}
+              onRefine={(instr) => onRefineModule(meta.field, instr)}
+              isRefining={moduleRefining(mod)}
+              disabled={isRefining && !moduleRefining(mod)}
+            />
+          )}
+        </div>
+        {children}
+      </div>
+    );
+  }
+
+  if (modules.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground text-center py-8">
+        Nenhum módulo comercial gerado ainda.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-8 pt-2">
-
-      {/* 1 — Funil pipeline */}
-      {funilSteps.length > 0 && (
+    <div className="space-y-6 -mx-2">
+      {/* Cockpit strip */}
+      <div className="rounded-xl border border-border/60 bg-muted/10 p-4 space-y-4">
         <div>
-          <p className="hera-label mb-4">Funil Comercial</p>
+          <p className="hera-label mb-1">Cockpit Comercial</p>
+          <p className="text-sm text-muted-foreground">
+            Selecione um módulo para operar. Cada bloco tem ajuste independente com IA.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {stats.map((s) => (
+            <div key={s.label} className="hera-stat-tile text-center py-3 px-2">
+              <p className="hera-mono text-xl font-bold text-foreground">{s.value}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
+                {s.label}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {modules.map((mod) => {
+            const meta = MODULE_META[mod];
+            const Icon = meta.icon;
+            const active = effectiveModule === mod;
+            return (
+              <button
+                key={mod}
+                type="button"
+                onClick={() => setActiveModule(mod)}
+                className={[
+                  "flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all",
+                  active
+                    ? "border-primary/60 bg-primary/15 text-foreground shadow-[0_0_12px_rgba(191,155,77,0.12)]"
+                    : "border-border bg-background/50 text-muted-foreground hover:border-primary/30",
+                ].join(" ")}
+              >
+                <Icon className="h-4 w-4" />
+                {meta.label}
+                {moduleRefining(mod) && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-hera-cyan animate-pulse" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-          {/* Horizontal kanban pipeline */}
-          <div className="overflow-x-auto pb-2 -mx-1 px-1">
-            <div className="flex items-stretch gap-0 min-w-max">
-              {funilSteps.map((step, i) => {
-                const isActive = selectedStage === i;
-                return (
-                  <div key={i} className="flex items-center">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedStage(isActive ? null : i)}
-                      className={[
-                        "flex flex-col items-start gap-1.5 px-3 py-3 rounded-lg border text-left transition-all min-w-[110px] max-w-[150px]",
-                        isActive
-                          ? "border-primary/60 bg-primary/10 shadow-[0_0_12px_rgba(191,155,77,0.15)]"
-                          : "hera-card hover:border-primary/30",
-                      ].join(" ")}
-                    >
-                      <span
+      {/* Active module panel */}
+      <div className="hera-card p-5 lg:p-6 min-h-[320px]">
+        {effectiveModule === "funil" && funilSteps.length > 0 && (
+          <ModuleShell
+            mod="funil"
+            title="Funil Comercial"
+            subtitle="Clique em uma etapa para ver detalhe e responsável"
+          >
+            <div className="overflow-x-auto pb-1">
+              <div className="flex items-stretch gap-0 min-w-max">
+                {funilSteps.map((step, i) => {
+                  const active = selectedFunil === i;
+                  return (
+                    <div key={i} className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFunil(active ? null : i)}
                         className={[
-                          "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0",
-                          isActive
-                            ? "bg-primary text-hera-navy-deep"
-                            : "bg-primary/20 text-primary",
+                          "flex flex-col gap-2 px-4 py-4 rounded-xl border text-left transition-all w-[140px] h-[120px]",
+                          active
+                            ? "border-primary/60 bg-primary/10"
+                            : "border-border hover:border-primary/30 bg-background/40",
                         ].join(" ")}
                       >
-                        {i + 1}
-                      </span>
-                      <p className="text-xs font-semibold text-foreground leading-tight">
-                        {step.etapa}
-                      </p>
-                      {step.detalhe && (
-                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
-                          {step.detalhe}
+                        <span className="hera-mono text-[10px] text-primary font-bold">
+                          {String(i + 1).padStart(2, "0")}
                         </span>
+                        <p className="text-xs font-semibold text-foreground leading-snug line-clamp-3 flex-1">
+                          {step.etapa}
+                        </p>
+                        {step.detalhe && (
+                          <span className="text-[9px] text-muted-foreground uppercase truncate w-full">
+                            {step.detalhe}
+                          </span>
+                        )}
+                      </button>
+                      {i < funilSteps.length - 1 && (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/25 shrink-0 mx-1" />
                       )}
-                      <ChevronDown
-                        className={`h-3 w-3 text-primary/60 transition-transform mt-auto self-end ${isActive ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {i < funilSteps.length - 1 && (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/30 shrink-0 mx-1" />
-                    )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {selectedFunil !== null && funilSteps[selectedFunil] && (
+              <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="hera-mono text-[10px] text-primary uppercase mb-1">
+                  Etapa {selectedFunil + 1}
+                </p>
+                <p className="font-semibold text-foreground">{funilSteps[selectedFunil].etapa}</p>
+                {funilSteps[selectedFunil].detalhe && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {funilSteps[selectedFunil].detalhe}
+                  </p>
+                )}
+              </div>
+            )}
+          </ModuleShell>
+        )}
+
+        {effectiveModule === "sdr" && (sdrCriterios.length > 0 || sdrScripts.length > 0) && (
+          <ModuleShell
+            mod="sdr"
+            title="SDR — Qualificação"
+            subtitle="Critérios de aceite e scripts de abordagem"
+          >
+            {sdrCriterios.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                {sdrCriterios.map((c, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-2.5 rounded-lg border border-border px-3 py-3 min-h-[72px]"
+                  >
+                    <span className="h-5 w-5 rounded-full bg-hera-done/20 border border-hera-done/40 flex items-center justify-center shrink-0">
+                      <Check className="h-3 w-3 text-hera-done" />
+                    </span>
+                    <p className="text-sm text-foreground leading-snug">{c}</p>
                   </div>
+                ))}
+              </div>
+            )}
+            {sdrScripts.map((script, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-border px-4 py-3 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto"
+              >
+                <p className="hera-mono text-[10px] text-muted-foreground mb-2">
+                  Script {i + 1}
+                </p>
+                {script}
+              </div>
+            ))}
+          </ModuleShell>
+        )}
+
+        {effectiveModule === "closer" && (closerRoteiro.length > 0 || closerPerguntas.length > 0) && (
+          <ModuleShell
+            mod="closer"
+            title="Closer — Roteiro de Call"
+            subtitle="Etapas da call e respostas a objeções"
+          >
+            {closerRoteiro.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6">
+                {closerRoteiro.map((etapa, i) => {
+                  const parsed = parseRoteiroStep(etapa, i);
+                  const open = expandedRoteiro === i;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setExpandedRoteiro(open ? null : i)}
+                      className={[
+                        "rounded-lg border text-left px-4 py-3 transition-all min-h-[88px]",
+                        open ? "border-primary/50 bg-primary/5 sm:col-span-2" : "border-border hover:border-primary/30",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <span className="hera-mono text-xs font-bold text-primary shrink-0">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">
+                              {parsed.title}
+                            </p>
+                            {parsed.duration && (
+                              <span className="text-[10px] text-hera-cyan font-medium">
+                                {parsed.duration}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {open && (
+                        <p className="text-sm text-muted-foreground mt-3 leading-relaxed text-left">
+                          {parsed.body}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {closerPerguntas.length > 0 && (
+              <>
+                <p className="hera-label mb-3">Objeções &amp; Fechamento</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {closerPerguntas.map((q, i) => {
+                    const obj = parseObjectionItem(q);
+                    const open = expandedObjection === i;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setExpandedObjection(open ? null : i)}
+                        className={[
+                          "rounded-lg border text-left px-4 py-3 transition-all",
+                          open ? "border-primary/50 bg-primary/5 sm:col-span-2" : "border-border hover:border-primary/30 min-h-[72px]",
+                        ].join(" ")}
+                      >
+                        <p className="text-xs font-bold text-foreground uppercase tracking-wide">
+                          {obj.title}
+                        </p>
+                        <p
+                          className={[
+                            "text-sm text-muted-foreground mt-2 italic leading-relaxed",
+                            open ? "" : "line-clamp-2",
+                          ].join(" ")}
+                        >
+                          &ldquo;{obj.script}&rdquo;
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </ModuleShell>
+        )}
+
+        {effectiveModule === "carta" && cartaRaw && (
+          <ModuleShell
+            mod="carta"
+            title="Carta de Vendas"
+            subtitle="Estrutura PAS + blocos — clique para expandir cada parte"
+          >
+            {cartaParsed.preamble && (
+              <p className="text-xs text-muted-foreground mb-4 border-l-2 border-primary/30 pl-3">
+                {cartaParsed.preamble}
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {cartaParsed.blocks.map((block, i) => {
+                const style = cartaTagStyle(block.tag);
+                const open = expandedCarta === i;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setExpandedCarta(open ? null : i)}
+                    className={[
+                      "rounded-xl border text-left p-4 transition-all",
+                      style.border,
+                      style.bg,
+                      open ? "sm:col-span-2" : "min-h-[100px]",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <p className={`hera-mono text-[10px] font-bold uppercase ${style.color}`}>
+                          {block.tag}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{block.label}</p>
+                      </div>
+                      <span className="hera-mono text-[10px] text-muted-foreground/50">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <p
+                      className={[
+                        "text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap text-left",
+                        open ? "" : "line-clamp-3",
+                      ].join(" ")}
+                    >
+                      {block.content || "(conteúdo pendente — use Ajustar para gerar este bloco)"}
+                    </p>
+                  </button>
                 );
               })}
             </div>
-          </div>
+          </ModuleShell>
+        )}
 
-          {/* Stage detail drawer */}
-          {selectedStage !== null && funilSteps[selectedStage] && (
-            <div className="mt-3 hera-card px-5 py-4 border-primary/20">
-              <p className="hera-mono text-[11px] text-primary/70 font-semibold uppercase tracking-wider mb-1">
-                Etapa {selectedStage + 1}
+        {effectiveModule === "pitch" && pitchRaw && (
+          <ModuleShell
+            mod="pitch"
+            title="Value Stacking — Pitch de Fechamento"
+            subtitle="Empilhamento de valor no momento do fechamento"
+          >
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                {pitchRaw}
               </p>
-              <h3 className="text-base font-bold text-foreground">
-                {funilSteps[selectedStage].etapa}
-              </h3>
-              {funilSteps[selectedStage].detalhe && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Responsável:{" "}
-                  <span className="font-medium text-foreground/80">
-                    {funilSteps[selectedStage].detalhe}
-                  </span>
-                </p>
-              )}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* 2 — SDR */}
-      {(sdrCriterios.length > 0 || sdrScripts.length > 0) && (
-        <div>
-          <p className="hera-label mb-3">SDR — Qualificação de Leads</p>
-
-          {sdrCriterios.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-              {sdrCriterios.map((c, i) => (
-                <div key={i} className="flex items-start gap-2.5 hera-card px-3 py-2.5">
-                  <span className="h-4 w-4 rounded-full bg-hera-done/20 border border-hera-done/50 flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="h-2.5 w-2.5 text-hera-done" />
-                  </span>
-                  <p className="text-sm text-foreground leading-snug">{c}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {sdrScripts.map((script, i) => (
-            <Accordion key={i} title={`Script SDR${sdrScripts.length > 1 ? ` ${i + 1}` : ""}`}>
-              {script}
-            </Accordion>
-          ))}
-        </div>
-      )}
-
-      {/* 3 — Closer */}
-      {(closerRoteiro.length > 0 || hasGroupedQuestions) && (
-        <div>
-          <p className="hera-label mb-3">Closer — Roteiro de Call</p>
-
-          {closerRoteiro.length > 0 && (
-            <div className="space-y-2 mb-6">
-              {closerRoteiro.map((etapa, i) => (
-                <StepCard key={i} number={i + 1} text={etapa} />
-              ))}
-            </div>
-          )}
-
-          {hasGroupedQuestions && (
-            <>
-              <p className="hera-label mb-3 mt-4">Perguntas-chave na Call</p>
-              <div className="space-y-3">
-                {(
-                  [
-                    "situacao",
-                    "problema",
-                    "implicacao",
-                    "necessidade",
-                    "fechamento",
-                    "other",
-                  ] as SpinCategory[]
-                ).map((cat) => {
-                  const qs = questionsByCategory[cat];
-                  if (!qs.length) return null;
-                  return <QuestionGroup key={cat} category={cat} questions={qs} />;
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* 4 — Carta de Vendas */}
-      {d.carta_vendas && (
-        <Accordion title="Carta de Vendas">{asString(d.carta_vendas)}</Accordion>
-      )}
-
-      {/* 5 — Pitch Stacking */}
-      {d.pitch_stacking && (
-        <Accordion title="Value Stacking — Pitch de Fechamento">
-          {asString(d.pitch_stacking)}
-        </Accordion>
-      )}
+          </ModuleShell>
+        )}
+      </div>
     </div>
   );
 }

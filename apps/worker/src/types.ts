@@ -19,7 +19,11 @@ export type Operation = {
   restricoes: string;
   operador_tipo: OperadorTipo;
   operador_perfil: Record<string, unknown> | null;
-  refine_params: { section_key: string; instruction: string } | null;
+  refine_params: {
+    section_key: string;
+    instruction: string;
+    focus_field?: string;
+  } | null;
   content_params: {
     dores: string[];
     formats: string[];
@@ -52,7 +56,14 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
       !Array.isArray(row.refine_params) &&
       typeof (row.refine_params as Record<string, unknown>).section_key === "string" &&
       typeof (row.refine_params as Record<string, unknown>).instruction === "string"
-        ? (row.refine_params as { section_key: string; instruction: string })
+        ? {
+            section_key: (row.refine_params as Record<string, unknown>).section_key as string,
+            instruction: (row.refine_params as Record<string, unknown>).instruction as string,
+            focus_field:
+              typeof (row.refine_params as Record<string, unknown>).focus_field === "string"
+                ? ((row.refine_params as Record<string, unknown>).focus_field as string)
+                : undefined,
+          }
         : null,
     content_params: (() => {
       const p = row.content_params;

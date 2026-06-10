@@ -45,12 +45,54 @@ const SPIN_SCHEMA_HINT = `{
   "necessidade": ["4-6 perguntas que antecipam a solução"]
 }`;
 
+const COMERCIAL_FOCUS_FIELDS = new Set([
+  "funil_comercial",
+  "sdr",
+  "closer",
+  "carta_vendas",
+  "pitch_stacking",
+]);
+
+const COMERCIAL_FOCUS_SCHEMA: Record<string, string> = {
+  funil_comercial: `{ "funil_comercial": ["etapa — responsável"] }`,
+  sdr: `{ "sdr": { "criterios": [], "scripts": [] } }`,
+  closer: `{ "closer": { "roteiro_call": [], "perguntas": [] } }`,
+  carta_vendas: `{ "carta_vendas": "Use blocos [LEAD], [PAS], [MECANISMO], [PROVA], [OFERTA], [GARANTIA], [CTA], [FAQ]" }`,
+  pitch_stacking: `{ "pitch_stacking": "empilhamento de valor no fechamento" }`,
+};
+
+const COMERCIAL_FOCUS_LABELS: Record<string, string> = {
+  funil_comercial: "Funil Comercial",
+  sdr: "SDR",
+  closer: "Closer",
+  carta_vendas: "Carta de Vendas",
+  pitch_stacking: "Pitch de Fechamento",
+};
+
 type RefinePromptOpts = {
   spinGuide?: SpinGuide | null;
   comercialContext?: unknown;
   /** Quando false, refine comercial não pede SPIN na mesma resposta */
   includeSpinOutput?: boolean;
+  /** Refina apenas um módulo dentro de comercial */
+  focusField?: string;
+  /** Contexto completo da seção comercial (para refine parcial) */
+  comercialFull?: Record<string, unknown>;
 };
+
+function mergeComercialPartial(
+  current: Record<string, unknown>,
+  refined: Record<string, unknown>,
+  focusField: string,
+): Record<string, unknown> {
+  const merged = { ...current };
+  if (focusField in refined) {
+    merged[focusField] = refined[focusField];
+  } else {
+    merged[focusField] = refined;
+  }
+  return merged;
+}
 
 function buildRefineSystem(op: Operation): string {
   const saas = isSaasB2B(op);
@@ -122,10 +164,47 @@ ${SPIN_SCHEMA_HINT}
     return { system: spinSystem, user };
   }
 
-  const schemaHint = SECTION_SCHEMA_HINT[sectionKey] ?? "{}";
-  const includeSpin = sectionKey === "comercial" && extras?.includeSpinOutput !== false;
+  const focusField = extras?.focusField;
+  const isPartialComercial =
+    sectionKey === "comercial" && focusField && COMERCIAL_FOCUS_FIELDS.has(focusField);
 
-  const user = `${operadorCtx}
+  const schemaHint = isPartialComercial
+    ? (COMERCIAL_FOCUS_SCHEMA[focusField] ?? "{}")
+    : (SECTION_SCHEMA_HINT[sectionKey] ?? "{}");
+
+  const includeSpin =
+    sectionKey === "comercial" && extras?.includeSpinOutput !== false && !isPartialComercial;
+
+  const focusLabel = focusField ? (COMERCIAL_FOCUS_LABELS[focusField] ?? focusField) : sectionName;
+
+  const user = isPartialComercial
+    ? `${operadorCtx}
+
+## Briefing
+- Nicho: ${op.nicho}
+- Posicionamento: ${op.posicionamento}
+- Ticket: ${op.ticket_alvo}
+- Restrições: ${op.restricoes}
+
+## Instrução do gestor (módulo: ${focusLabel})
+${instruction}
+
+## Módulo atual — ${focusLabel}
+${JSON.stringify(currentData, null, 2)}
+
+## Contexto da seção comercial (não altere outros módulos)
+${JSON.stringify(extras?.comercialFull ?? {}, null, 2)}
+
+## Esquema do módulo
+${schemaHint}
+
+IMPORTANTE: Refine APENAS o campo "${focusField}". Retorne JSON com somente essa chave.
+
+Emita SOMENTE:
+<<<HERA_REFINE:comercial>>>
+${schemaHint}
+<<<END>>>`
+    : `${operadorCtx}
 
 ## Briefing
 - Nicho: ${op.nicho}
@@ -243,17 +322,23 @@ export async function runJobRefine(
     return;
   }
 
-  const { section_key, instruction } = params;
+  const { section_key, instruction, focus_field: focusField } = params;
   const sectionName = SECTION_NAMES[section_key] ?? section_key;
+  const focusLabel =
+    focusField && COMERCIAL_FOCUS_LABELS[focusField]
+      ? COMERCIAL_FOCUS_LABELS[focusField]
+      : null;
 
-  console.log(`[worker][refine] ${sectionName} — ${operationId}`);
+  console.log(
+    `[worker][refine] ${focusLabel ?? sectionName} — ${operationId}${focusField ? ` (focus: ${focusField})` : ""}`,
+  );
 
   try {
     await appendPhaseLog(
       supabase,
       operationId,
       "blueprint",
-      `🔧 Refinando "${sectionName}"...`,
+      `🔧 Refinando "${focusLabel ?? sectionName}"...`,
     );
 
     const { data: bp } = await supabase
@@ -282,14 +367,25 @@ export async function runJobRefine(
       totalCostUsd += costUsd;
       await persistSpinGuide(supabase, operationId, parsed as SpinGuide);
     } else if (section_key === "comercial") {
-      // Chamada 1: só comercial (resposta mais simples = parse confiável)
+      const currentComercial = (currentSections.comercial ?? {}) as Record<string, unknown>;
+      const isPartial =
+        !!focusField && COMERCIAL_FOCUS_FIELDS.has(focusField);
+
+      const promptData = isPartial
+        ? { [focusField]: currentComercial[focusField] ?? null }
+        : currentComercial;
+
       const { system, user } = buildRefinePrompt(
         section_key,
         sectionName,
         instruction,
-        currentSections.comercial ?? {},
+        promptData,
         claimed,
-        { includeSpinOutput: false },
+        {
+          includeSpinOutput: false,
+          focusField: isPartial ? focusField : undefined,
+          comercialFull: isPartial ? currentComercial : undefined,
+        },
       );
       const { parsed: refined, costUsd } = await callRefineAndParse(
         env.ANTHROPIC_API_KEY,
@@ -298,33 +394,39 @@ export async function runJobRefine(
         user,
       );
       totalCostUsd += costUsd;
-      await mergeBlueprintSections(supabase, operationId, { comercial: refined });
 
-      // Chamada 2: SPIN alinhado à mesma instrução
-      await appendPhaseLog(
-        supabase,
-        operationId,
-        "blueprint",
-        `🔧 Atualizando guia SPIN...`,
-      );
-      const spinPrompt = buildRefinePrompt("spin", "SPIN Selling", instruction, null, claimed, {
-        spinGuide: currentSpinGuide,
-        comercialContext: refined,
-      });
-      try {
-        const { parsed: refinedSpin, costUsd: spinCost } = await callRefineAndParse(
-          env.ANTHROPIC_API_KEY,
-          "spin",
-          spinPrompt.system,
-          spinPrompt.user,
+      const mergedComercial = isPartial
+        ? mergeComercialPartial(currentComercial, refined, focusField)
+        : refined;
+      await mergeBlueprintSections(supabase, operationId, { comercial: mergedComercial });
+
+      // SPIN só quando refinando a seção inteira (não módulo isolado)
+      if (!isPartial) {
+        await appendPhaseLog(
+          supabase,
+          operationId,
+          "blueprint",
+          `🔧 Atualizando guia SPIN...`,
         );
-        totalCostUsd += spinCost;
-        await persistSpinGuide(supabase, operationId, refinedSpin as SpinGuide);
-        console.log(`[worker][refine] SPIN guide atualizado — ${operationId}`);
-      } catch (spinErr) {
-        console.warn(
-          `[worker][refine] comercial OK mas SPIN falhou: ${spinErr instanceof Error ? spinErr.message : spinErr}`,
-        );
+        const spinPrompt = buildRefinePrompt("spin", "SPIN Selling", instruction, null, claimed, {
+          spinGuide: currentSpinGuide,
+          comercialContext: mergedComercial,
+        });
+        try {
+          const { parsed: refinedSpin, costUsd: spinCost } = await callRefineAndParse(
+            env.ANTHROPIC_API_KEY,
+            "spin",
+            spinPrompt.system,
+            spinPrompt.user,
+          );
+          totalCostUsd += spinCost;
+          await persistSpinGuide(supabase, operationId, refinedSpin as SpinGuide);
+          console.log(`[worker][refine] SPIN guide atualizado — ${operationId}`);
+        } catch (spinErr) {
+          console.warn(
+            `[worker][refine] comercial OK mas SPIN falhou: ${spinErr instanceof Error ? spinErr.message : spinErr}`,
+          );
+        }
       }
     } else {
       const { system, user } = buildRefinePrompt(
