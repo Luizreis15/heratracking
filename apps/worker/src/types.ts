@@ -25,9 +25,13 @@ export type Operation = {
     focus_field?: string;
   } | null;
   content_params: {
-    dores: string[];
-    formats: string[];
+    mode?: "generate" | "refine";
+    dores?: string[];
+    formats?: string[];
+    funil_etapas?: Array<"topo" | "meio" | "fundo">;
     angulos?: Array<{ gancho?: string; corpo?: string; cta?: string; titulo?: string }>;
+    refine_item_id?: string;
+    instruction?: string;
   } | null;
   concorrentes_seeds: ConcorrenteSeed[];
   job_mode: JobMode;
@@ -69,8 +73,35 @@ export function normalizeOperation(row: Record<string, unknown>): Operation {
       const p = row.content_params;
       if (!p || typeof p !== "object" || Array.isArray(p)) return null;
       const obj = p as Record<string, unknown>;
+      if (obj.mode === "refine") {
+        if (typeof obj.refine_item_id !== "string" || typeof obj.instruction !== "string") return null;
+        return {
+          mode: "refine" as const,
+          refine_item_id: obj.refine_item_id,
+          instruction: obj.instruction,
+        };
+      }
       if (!Array.isArray(obj.dores) || !Array.isArray(obj.formats)) return null;
-      return obj as unknown as Operation["content_params"];
+      const funil = Array.isArray(obj.funil_etapas)
+        ? (obj.funil_etapas as unknown[]).filter(
+            (f): f is "topo" | "meio" | "fundo" =>
+              f === "topo" || f === "meio" || f === "fundo",
+          )
+        : undefined;
+      return {
+        mode: "generate" as const,
+        dores: obj.dores as string[],
+        formats: obj.formats as string[],
+        funil_etapas: funil?.length ? funil : (["topo", "meio", "fundo"] as const),
+        angulos: Array.isArray(obj.angulos)
+          ? (obj.angulos as Array<{
+              gancho?: string;
+              corpo?: string;
+              cta?: string;
+              titulo?: string;
+            }>)
+          : undefined,
+      };
     })(),
     operador_tipo:
       row.operador_tipo === "saas_b2b" ? "saas_b2b" : "agencia",

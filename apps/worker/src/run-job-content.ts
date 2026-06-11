@@ -10,77 +10,180 @@ import {
 } from "./persist.js";
 import { callClaudeMessages } from "./anthropic/client.js";
 import { isSaasB2B } from "./operador-tipo.js";
-import { parseContentBlock } from "./parser.js";
+import { buildOperadorB2BContext } from "./operador-context.js";
+import { parseContentBlock, type SpinGuide } from "./parser.js";
+import {
+  CONTENT_SYSTEM_PROMPT_AGENCIA,
+  CONTENT_SYSTEM_PROMPT_SAAS,
+} from "./content-directives.js";
+import {
+  buildBlueprintContentContext,
+  formatBlueprintContextBlock,
+} from "./content-context.js";
 
 const CONTENT_MODEL = "claude-opus-4-8";
 
+const VALID_FORMATS = new Set([
+  "carrossel_instagram",
+  "post_estatico",
+  "reels",
+  "email_prospeccao",
+  "post_instagram",
+  "script_reels",
+]);
+
 const FORMAT_SCHEMAS: Record<string, string> = {
-  post_instagram: `{ "titulo": "hook em 1 linha", "corpo": "caption com 3-5 parágrafos curtos, emojis permitidos", "cta": "chamada para ação", "hashtags": ["#hashtag1", ...] }`,
-  script_reels: `{ "hook": "fala dos primeiros 3 segundos — direto ao ponto", "desenvolvimento": "narração de 30-45 segundos", "cta": "chamada final", "duracao_seg": 45 }`,
-  email_prospeccao: `{ "assunto": "assunto (máx 60 chars, sem clickbait)", "corpo": "200-300 palavras, personalizado para o ICP B2B do briefing", "cta": "próximo passo claro" }`,
+  carrossel_instagram: `{
+  "slides": ["headline slide 1", "slide 2", "..."],
+  "legenda": "caption completa",
+  "cta": "ação",
+  "hashtags": ["#tag"],
+  "gancho_contraintuitivo": "frase que quebra expectativa"
+}`,
+  post_estatico: `{
+  "headline_imagem": "texto na arte",
+  "legenda": "caption",
+  "cta": "ação",
+  "hashtags": ["#tag"],
+  "gancho_contraintuitivo": "frase contraintuitiva"
+}`,
+  reels: `{
+  "hook": "fala dos 3 primeiros segundos",
+  "desenvolvimento": "roteiro 30-45s",
+  "texto_tela": ["texto on-screen 1", "..."],
+  "cta": "fechamento",
+  "duracao_seg": 45,
+  "gancho_contraintuitivo": "frase contraintuitiva"
+}`,
+  email_prospeccao: `{
+  "assunto": "máx 60 chars",
+  "corpo": "200-300 palavras B2B",
+  "cta": "próximo passo",
+  "gancho_contraintuitivo": "linha de abertura contraintuitiva"
+}`,
 };
 
-const FORMAT_LABELS: Record<string, string> = {
-  post_instagram: "Post Instagram",
-  script_reels: "Script Reels",
-  email_prospeccao: "Email de Prospecção B2B",
+const FUNIL_LABELS: Record<string, string> = {
+  topo: "TOPO — awareness, parar o scroll, dor + gancho contraintuitivo",
+  meio: "MEIO — consideração, mecanismo, prova, autoridade",
+  fundo: "FUNDO — conversão, CTA direto, urgência real, demo/call",
 };
 
-function buildPrompt(op: Operation): { system: string; user: string } {
-  const params = op.content_params!;
-  const formatsBlock = params.formats
-    .map((f) => `**${FORMAT_LABELS[f] ?? f}** → schema: ${FORMAT_SCHEMAS[f] ?? "{}"}`)
-    .join("\n");
+function normalizeFormat(f: string): string {
+  if (f === "post_instagram") return "post_estatico";
+  if (f === "script_reels") return "reels";
+  return f;
+}
 
-  const angulosBlock =
-    params.angulos && params.angulos.length > 0
-      ? params.angulos
-          .slice(0, 3)
-          .map(
-            (a, i) =>
-              `${i + 1}. Gancho: "${a.gancho ?? ""}" | Corpo: "${a.corpo ?? ""}" | CTA: "${a.cta ?? ""}"`,
-          )
-          .join("\n")
-      : "Nenhum ângulo fornecido — use criatividade baseada nas dores.";
+function buildGeneratePrompt(
+  op: Operation,
+  blueprintBlock: string,
+  params: NonNullable<Operation["content_params"]> & {
+    dores: string[];
+    formats: string[];
+  },
+): { system: string; user: string } {
+  const formats = params.formats.map(normalizeFormat);
+  const funilEtapas = params.funil_etapas?.length
+    ? params.funil_etapas
+    : (["topo", "meio", "fundo"] as const);
 
-  const saas = isSaasB2B(op);
-  const system = saas
-    ? `Você é o Gerador de Conteúdo HERA — cria materiais de go-to-market B2B para SaaS/plataformas.
+  const formatsBlock = [...new Set(formats)]
+    .map((f) => `**${f}** → ${FORMAT_SCHEMAS[f] ?? "{}"}`)
+    .join("\n\n");
 
-O conteúdo é da **plataforma (operador)** para atrair **empresas compradoras (ICP)** — decisores que contratam o software.
+  const combos: string[] = [];
+  for (const dor of params.dores) {
+    for (const fmt of formats) {
+      for (const funil of funilEtapas) {
+        combos.push(`- dor: "${dor}" | formato: ${fmt} | funil_etapa: ${funil}`);
+      }
+    }
+  }
 
-Respeite as restrições do briefing. Foco em pipeline B2B, autoridade, prova social enterprise, demos e conversão de trials.`
-    : `Você é o Gerador de Conteúdo HERA — cria copies B2B para agências de marketing ultra-nichadas.
+  const system = isSaasB2B(op) ? CONTENT_SYSTEM_PROMPT_SAAS : CONTENT_SYSTEM_PROMPT_AGENCIA;
+  const operadorCtx = buildOperadorB2BContext(op, null);
 
-O conteúdo é da **agência (operador)** para atrair seu **cliente B2B (ICP)** — não para o consumidor final do ICP.
+  const user = `${operadorCtx}
 
-Respeite as restrições do briefing. Foco em resultados de marketing (leads, pipeline, visibilidade, autoridade).`;
+${blueprintBlock}
 
-  const user = `## Operação
+## Briefing
 - Nicho: ${op.nicho}
 - Posicionamento: ${op.posicionamento}
-- Ticket-alvo: ${op.ticket_alvo}
-- Modelo: ${op.modelo_entrega}
+- Ticket: ${op.ticket_alvo}
 - Restrições: ${op.restricoes}
 
-## Dores prioritárias do ICP
+## Dores selecionadas para esta geração
 ${params.dores.map((d, i) => `${i + 1}. ${d}`).join("\n")}
 
-## Ângulos criativos disponíveis
-${angulosBlock}
+## Etapas de funil nesta geração
+${funilEtapas.map((f) => `- ${f}: ${FUNIL_LABELS[f] ?? f}`).join("\n")}
 
-## Formatos solicitados e seus schemas JSON
+## Combinações obrigatórias (${combos.length} peças — 1 JSON por linha)
+${combos.join("\n")}
+
+## Schemas por formato
 ${formatsBlock}
 
 ## Tarefa
-Para **cada dor × cada formato**, gere 1 conteúdo. Total: ${params.dores.length} × ${params.formats.length} = ${params.dores.length * params.formats.length} itens.
+Gere EXATAMENTE ${combos.length} peças — uma para cada combinação acima.
+Cada item DEVE incluir: format, dor (texto exato), funil_etapa, content (schema do formato).
+O gancho_contraintuitivo vai DENTRO de content.
 
 Emita SOMENTE:
 <<<HERA_CONTENT>>>
 [
-  { "format": "post_instagram", "dor": "dor exata como recebida", "content": { ... } },
-  { "format": "script_reels", "dor": "dor exata", "content": { ... } },
-  ...
+  {
+    "format": "carrossel_instagram",
+    "dor": "dor exata",
+    "funil_etapa": "topo",
+    "content": { ... }
+  }
+]
+<<<END>>>`;
+
+  return { system, user };
+}
+
+function buildRefinePrompt(
+  op: Operation,
+  blueprintBlock: string,
+  existing: { format: string; dor: string | null; content: Record<string, unknown> },
+  instruction: string,
+): { system: string; user: string } {
+  const system = isSaasB2B(op) ? CONTENT_SYSTEM_PROMPT_SAAS : CONTENT_SYSTEM_PROMPT_AGENCIA;
+  const fmt = normalizeFormat(existing.format);
+  const schema = FORMAT_SCHEMAS[fmt] ?? "{}";
+
+  const user = `${buildOperadorB2BContext(op, null)}
+
+${blueprintBlock}
+
+## Peça atual (${fmt})
+Dor: ${existing.dor ?? "—"}
+Funil: ${String(existing.content.funil_etapa ?? "—")}
+
+\`\`\`json
+${JSON.stringify(existing.content, null, 2)}
+\`\`\`
+
+## Instrução do gestor
+${instruction}
+
+## Tarefa
+Refine APENAS esta peça. Mantenha format="${existing.format}" e a mesma dor.
+Melhore gancho contraintuitivo, especificidade da dor e CTA de conversão.
+
+Emita SOMENTE:
+<<<HERA_CONTENT>>>
+[
+  {
+    "format": "${existing.format}",
+    "dor": "${existing.dor ?? ""}",
+    "funil_etapa": "${String(existing.content.funil_etapa ?? "meio")}",
+    "content": ${schema}
+  }
 ]
 <<<END>>>`;
 
@@ -101,45 +204,154 @@ export async function runJobContent(
   const operationId = claimed.id;
   const params = claimed.content_params;
 
-  if (!params?.dores?.length || !params?.formats?.length) {
-    await markOperationError(supabase, operationId, "content_params ausente ou inválido", null);
+  if (!params) {
+    await markOperationError(supabase, operationId, "content_params ausente", null);
     return;
   }
 
-  const totalItems = params.dores.length * params.formats.length;
-  console.log(`[worker][content] ${totalItems} itens — ${operationId}`);
+  const { data: bp } = await supabase
+    .from("blueprints")
+    .select("sections, spin_guide")
+    .eq("operation_id", operationId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const sections = (bp?.sections ?? {}) as Record<string, unknown>;
+  const spinGuide = (bp?.spin_guide ?? null) as SpinGuide | null;
+  const blueprintCtx = buildBlueprintContentContext(sections, spinGuide);
+  const blueprintBlock = formatBlueprintContextBlock(blueprintCtx);
 
   try {
+    if (params.mode === "refine") {
+      const itemId = params.refine_item_id;
+      const instruction = params.instruction;
+      if (!itemId || !instruction) {
+        await markOperationError(supabase, operationId, "refine de conteúdo: params inválidos", null);
+        return;
+      }
+
+      const { data: row, error: fetchErr } = await supabase
+        .from("content_items")
+        .select("id, format, dor, content")
+        .eq("id", itemId)
+        .eq("operation_id", operationId)
+        .maybeSingle();
+
+      if (fetchErr || !row) {
+        await markOperationError(supabase, operationId, "peça de conteúdo não encontrada", null);
+        return;
+      }
+
+      await appendPhaseLog(supabase, operationId, "blueprint", `🔧 Refinando peça de conteúdo...`);
+
+      const { system, user } = buildRefinePrompt(
+        claimed,
+        blueprintBlock,
+        {
+          format: row.format,
+          dor: row.dor,
+          content: (row.content ?? {}) as Record<string, unknown>,
+        },
+        instruction,
+      );
+
+      const { text, costUsd } = await callClaudeMessages(env.ANTHROPIC_API_KEY, {
+        model: CONTENT_MODEL,
+        maxTokens: 8192,
+        system,
+        user,
+        timeoutMs: 120_000,
+      });
+
+      const items = parseContentBlock(text);
+      const refined = items?.[0];
+      if (!refined) throw new Error("Refino de conteúdo: bloco HERA_CONTENT inválido");
+
+      const mergedContent = {
+        ...refined.content,
+        funil_etapa: refined.content.funil_etapa ?? (row.content as Record<string, unknown>)?.funil_etapa,
+      };
+
+      const { error: updErr } = await supabase
+        .from("content_items")
+        .update({
+          format: normalizeFormat(refined.format) === refined.format ? refined.format : row.format,
+          content: mergedContent,
+        })
+        .eq("id", itemId);
+
+      if (updErr) throw new Error(updErr.message);
+
+      await appendPhaseLog(supabase, operationId, "blueprint", `✅ Peça de conteúdo refinada`);
+      if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
+      await markOperationDone(supabase, operationId, undefined, {
+        keepPhase: "blueprint",
+        restoreJobMode: true,
+      });
+      return;
+    }
+
+    // Generate mode
+    if (!params.dores?.length || !params.formats?.length) {
+      await markOperationError(supabase, operationId, "content_params ausente ou inválido", null);
+      return;
+    }
+
+    const funilEtapas = params.funil_etapas?.length ? params.funil_etapas : ["topo", "meio", "fundo"];
+    const totalItems = params.dores.length * params.formats.length * funilEtapas.length;
+
+    console.log(`[worker][content] ${totalItems} peças — ${operationId}`);
+
     await appendPhaseLog(
       supabase,
       operationId,
-      "pesquisa",
-      `✍️ Gerando ${totalItems} peças de conteúdo (${params.dores.length} dores × ${params.formats.length} formatos)...`,
+      "blueprint",
+      `✍️ Motor criativo: ${totalItems} peças (${params.dores.length} dores × ${params.formats.length} formatos × ${funilEtapas.length} funil)...`,
     );
 
-    const { system, user } = buildPrompt(claimed);
+    const { system, user } = buildGeneratePrompt(claimed, blueprintBlock, {
+      ...params,
+      dores: params.dores,
+      formats: params.formats,
+    });
     const { text, costUsd } = await callClaudeMessages(env.ANTHROPIC_API_KEY, {
       model: CONTENT_MODEL,
       maxTokens: 16384,
       system,
       user,
-      timeoutMs: 180_000,
+      timeoutMs: 240_000,
     });
 
     const items = parseContentBlock(text);
-
-    if (!items || items.length === 0) {
+    if (!items?.length) {
       throw new Error("Bloco <<<HERA_CONTENT>>> não encontrado ou lista vazia");
     }
 
-    // Persiste cada item em content_items
-    const rows = items.map((item) => ({
-      operation_id: operationId,
-      workspace_id: claimed.workspace_id,
-      format: item.format,
-      dor: item.dor ?? null,
-      content: item.content,
-    }));
+    const rows = items
+      .filter((item) => VALID_FORMATS.has(item.format) || VALID_FORMATS.has(normalizeFormat(item.format)))
+      .map((item) => {
+        const fmt = normalizeFormat(item.format);
+        const storeFormat =
+          item.format === "post_instagram" || item.format === "script_reels"
+            ? item.format
+            : fmt;
+        const funil =
+          (item.content.funil_etapa as string) ??
+          (item as { funil_etapa?: string }).funil_etapa ??
+          "meio";
+        return {
+          operation_id: operationId,
+          workspace_id: claimed.workspace_id,
+          format: storeFormat === "post_estatico" && item.format === "post_instagram"
+            ? "post_instagram"
+            : storeFormat === "reels" && item.format === "script_reels"
+              ? "script_reels"
+              : fmt,
+          dor: item.dor ?? null,
+          content: { ...item.content, funil_etapa: funil },
+        };
+      });
 
     const { error: insertErr } = await supabase.from("content_items").insert(rows);
     if (insertErr) throw new Error(`Falha ao gravar content_items: ${insertErr.message}`);
@@ -147,8 +359,8 @@ export async function runJobContent(
     await appendPhaseLog(
       supabase,
       operationId,
-      "pesquisa",
-      `✅ ${rows.length} peças gravadas com sucesso`,
+      "blueprint",
+      `✅ ${rows.length} peças criativas gravadas`,
     );
 
     if (costUsd) await incrementOperationCost(supabase, operationId, costUsd);
@@ -157,7 +369,7 @@ export async function runJobContent(
       restoreJobMode: true,
     });
 
-    console.log(`[worker][content] ${rows.length} itens gravados — ${operationId}`);
+    console.log(`[worker][content] ${rows.length} itens — ${operationId}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro na geração de conteúdo";
     console.error(`[worker][content] ${msg}`);
