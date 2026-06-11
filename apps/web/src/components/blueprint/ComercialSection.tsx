@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   Check,
-  ChevronRight,
   FileText,
   GitBranch,
   Layers,
@@ -184,11 +183,11 @@ export function ComercialSection({
             Selecione um módulo para operar. Cada bloco tem ajuste independente com IA.
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {stats.map((s) => (
-            <div key={s.label} className="hera-stat-tile text-center py-3 px-2">
+            <div key={s.label} className="hera-stat-tile text-center py-3 px-2 min-w-0">
               <p className="hera-mono text-xl font-bold text-foreground">{s.value}</p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5 leading-snug text-balance">
                 {s.label}
               </p>
             </div>
@@ -205,13 +204,13 @@ export function ComercialSection({
                 type="button"
                 onClick={() => setActiveModule(mod)}
                 className={[
-                  "flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all",
+                  "flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all shrink-0",
                   active
                     ? "border-primary/60 bg-primary/15 text-foreground shadow-[0_0_12px_rgba(191,155,77,0.12)]"
                     : "border-border bg-background/50 text-muted-foreground hover:border-primary/30",
                 ].join(" ")}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 {meta.label}
                 {moduleRefining(mod) && (
                   <span className="h-1.5 w-1.5 rounded-full bg-hera-cyan animate-pulse" />
@@ -228,57 +227,42 @@ export function ComercialSection({
           <ModuleShell
             mod="funil"
             title="Funil Comercial"
-            subtitle="Clique em uma etapa para ver detalhe e responsável"
+            subtitle="Etapas do funil com responsável — clique para destacar"
           >
-            <div className="overflow-x-auto pb-1">
-              <div className="flex items-stretch gap-0 min-w-max">
-                {funilSteps.map((step, i) => {
-                  const active = selectedFunil === i;
-                  return (
-                    <div key={i} className="flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedFunil(active ? null : i)}
-                        className={[
-                          "flex flex-col gap-2 px-4 py-4 rounded-xl border text-left transition-all w-[140px] h-[120px]",
-                          active
-                            ? "border-primary/60 bg-primary/10"
-                            : "border-border hover:border-primary/30 bg-background/40",
-                        ].join(" ")}
-                      >
-                        <span className="hera-mono text-[10px] text-primary font-bold">
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-                        <p className="text-xs font-semibold text-foreground leading-snug line-clamp-3 flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {funilSteps.map((step, i) => {
+                const active = selectedFunil === i;
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelectedFunil(active ? null : i)}
+                    className={[
+                      "rounded-xl border text-left px-4 py-4 transition-all min-h-[96px]",
+                      active
+                        ? "border-primary/60 bg-primary/10 ring-1 ring-primary/20"
+                        : "border-border hover:border-primary/30 bg-background/40",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span className="hera-mono text-xs font-bold text-primary shrink-0 pt-0.5">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-foreground leading-snug">
                           {step.etapa}
                         </p>
                         {step.detalhe && (
-                          <span className="text-[9px] text-muted-foreground uppercase truncate w-full">
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                             {step.detalhe}
-                          </span>
+                          </p>
                         )}
-                      </button>
-                      {i < funilSteps.length - 1 && (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground/25 shrink-0 mx-1" />
-                      )}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </button>
+                );
+              })}
             </div>
-            {selectedFunil !== null && funilSteps[selectedFunil] && (
-              <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                <p className="hera-mono text-[10px] text-primary uppercase mb-1">
-                  Etapa {selectedFunil + 1}
-                </p>
-                <p className="font-semibold text-foreground">{funilSteps[selectedFunil].etapa}</p>
-                {funilSteps[selectedFunil].detalhe && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {funilSteps[selectedFunil].detalhe}
-                  </p>
-                )}
-              </div>
-            )}
           </ModuleShell>
         )}
 
