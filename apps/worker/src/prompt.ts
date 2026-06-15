@@ -1,5 +1,6 @@
 import { buildBriefingBlock, buildOperadorB2BContext } from "./operador-context.js";
 import { isSaasB2B } from "./operador-tipo.js";
+import { buildMethodBlock, CONTINUATION_REFS } from "./load-references.js";
 import type { MethodProfile, Operation } from "./types.js";
 
 export function buildPrompt(operation: Operation, profile: MethodProfile | null): string {
@@ -67,11 +68,12 @@ ${buildBriefingBlock(operation, profile)}
 ## Metodologia proprietária
 ${extensoes}
 
-## Instruções
-1. Leia \`references/00-output-contract.md\` antes de emitir blocos.
-2. Invoque a skill \`arquiteto-de-agencia\` e execute **somente Fases 2 a 6**: ${phasesHint}
-3. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido.
-4. Respeite compliance do briefing em toda copy.
+${buildMethodBlock(CONTINUATION_REFS)}
+
+## Instruções de execução
+1. Execute somente Fases 2 a 6: ${phasesHint}
+2. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido.
+3. Respeite compliance do briefing em toda copy.
 
 Comece agora pela Fase 2 (Oferta).`;
 }

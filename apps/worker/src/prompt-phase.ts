@@ -1,5 +1,11 @@
 import { buildBriefingBlock, buildOperadorB2BContext } from "./operador-context.js";
 import { isSaasB2B } from "./operador-tipo.js";
+import {
+  buildMethodBlock,
+  BLUEPRINT_REFS,
+  GROUP_A_REFS,
+  GROUP_B_REFS,
+} from "./load-references.js";
 import type { MethodProfile, Operation } from "./types.js";
 
 function extensoesStr(profile: MethodProfile | null): string {
@@ -39,12 +45,12 @@ ${buildBriefingBlock(operation, profile)}
 ## Metodologia proprietária
 ${extensoesStr(profile)}
 
-## Instruções
-1. Leia \`references/00-output-contract.md\` antes de emitir blocos.
-2. Invoque a skill \`arquiteto-de-agencia\` e execute **somente**:
-   ${ofertaHint}
-3. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido e \`<<<END>>>\`.
-4. Respeite compliance do briefing.
+${buildMethodBlock(GROUP_A_REFS)}
+
+## Instruções de execução
+1. Aplique o método acima para as Fases 2 e 3: ${ofertaHint}
+2. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido e \`<<<END>>>\`.
+3. Respeite compliance do briefing.
 
 Comece pela Fase 2 (Oferta).`;
 }
@@ -80,12 +86,12 @@ ${buildBriefingBlock(operation, profile)}
 ## Metodologia proprietária
 ${extensoesStr(profile)}
 
-## Instruções
-1. Leia \`references/00-output-contract.md\` antes de emitir blocos.
-2. Invoque a skill \`arquiteto-de-agencia\` e execute **somente**:
-   ${posHint}
-3. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido e \`<<<END>>>\`.
-4. Respeite compliance do briefing.
+${buildMethodBlock(GROUP_B_REFS)}
+
+## Instruções de execução
+1. Aplique o método acima para as Fases 4 e 5: ${posHint}
+2. Ao concluir CADA fase, emita \`<<<HERA_PHASE:nome>>>\` com JSON válido e \`<<<END>>>\`.
+3. Respeite compliance do briefing.
 
 Comece pela Fase 4 (Posicionamento).`;
 }
@@ -120,11 +126,12 @@ ${buildBriefingBlock(operation, profile)}
 ## Metodologia proprietária
 ${extensoesStr(profile)}
 
-## Instruções
-1. Leia \`references/00-output-contract.md\` e \`references/templates/blueprint-mestre.md\`.
-2. ${hint}
-3. Emita \`<<<HERA_PHASE:blueprint>>>\` com JSON válido e \`<<<END>>>\`.
-4. Respeite compliance do briefing.
+${buildMethodBlock(BLUEPRINT_REFS)}
+
+## Instruções de execução
+1. ${hint}
+2. Emita \`<<<HERA_PHASE:blueprint>>>\` com JSON válido e \`<<<END>>>\`.
+3. Respeite compliance do briefing.
 
 Comece a Fase 6 (Blueprint).`;
 }
