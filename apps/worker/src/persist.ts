@@ -52,6 +52,28 @@ export async function fetchNextQueued(
   return data ? normalizeOperation(data as Record<string, unknown>) : null;
 }
 
+/** Recria timeline de fases do zero — usado no início de cada job full. */
+export async function resetPhaseEvents(
+  supabase: SupabaseClient,
+  operationId: string,
+): Promise<void> {
+  const { error: delErr } = await supabase
+    .from("phase_events")
+    .delete()
+    .eq("operation_id", operationId);
+  if (delErr) throw new Error(`Falha ao limpar phase_events: ${delErr.message}`);
+
+  const rows = PHASE_ORDER.map((phase) => ({
+    operation_id: operationId,
+    phase,
+    status: "pending" as const,
+  }));
+
+  const { error } = await supabase.from("phase_events").insert(rows);
+  if (error) throw new Error(`Falha ao criar phase_events: ${error.message}`);
+}
+
+/** @deprecated Prefer resetPhaseEvents no job full — mantido para runners legados. */
 export async function initPhaseEvents(
   supabase: SupabaseClient,
   operationId: string,
@@ -63,15 +85,7 @@ export async function initPhaseEvents(
     .limit(1);
 
   if (existing && existing.length > 0) return;
-
-  const rows = PHASE_ORDER.map((phase) => ({
-    operation_id: operationId,
-    phase,
-    status: "pending",
-  }));
-
-  const { error } = await supabase.from("phase_events").insert(rows);
-  if (error) throw new Error(`Falha ao criar phase_events: ${error.message}`);
+  await resetPhaseEvents(supabase, operationId);
 }
 
 export async function setPhaseStatus(

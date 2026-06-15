@@ -556,7 +556,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      fn_reset_operation_generation: {
+        Args: {
+          p_operation_id: string
+          p_keep_competitors?: boolean
+          p_keep_content?: boolean
+          p_keep_comparison?: boolean
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

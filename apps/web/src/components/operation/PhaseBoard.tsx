@@ -19,6 +19,7 @@ import { PHASES, phaseIndex } from "@/lib/phases";
 import { operadorNomeFromOperation } from "@/lib/operador-nome";
 import { resolveOperadorTipo } from "@/lib/operador-tipo";
 import { MetricsSummary } from "@/components/operation/MetricsSummary";
+import { RegenerateOperationButton } from "@/components/operation/RegenerateOperationButton";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useTypewriter } from "@/hooks/useTypewriter";
@@ -108,6 +109,9 @@ export function PhaseBoard({
             <QuickLink to={`/operations/${operationId}/concorrencia`} icon={Users} label={`Concorrência (${competitorCount})`} />
             <QuickLink to={`/operations/${operationId}/analise`} icon={Building2} label="Análise" />
             <QuickLink to={`/operations/${operationId}/inteligencia`} icon={Radar} label="Intel" />
+            {!isActive && (
+              <RegenerateOperationButton operationId={operationId} />
+            )}
           </div>
         </div>
 
@@ -293,12 +297,13 @@ export function PhaseBoard({
               <MetricsSummary operationId={operationId} currentMonth={currentMonthMetrics} />
 
               {operation.status === "error" && (
-                <div className="hera-card p-5 border-destructive/40 space-y-2">
+                <div className="hera-card p-5 border-destructive/40 space-y-3">
                   <div className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="h-5 w-5" />
                     <p className="font-semibold">Erro no processamento</p>
                   </div>
                   <p className="hera-mono text-sm text-muted-foreground">{operation.error}</p>
+                  <RegenerateOperationButton operationId={operationId} />
                 </div>
               )}
 

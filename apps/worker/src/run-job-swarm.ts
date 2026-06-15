@@ -8,7 +8,7 @@ import { buildGroupAPrompt, buildGroupBPrompt, buildBlueprintPrompt } from "./pr
 import {
   appendPhaseLog,
   claimOperation,
-  initPhaseEvents,
+  resetPhaseEvents,
   loadMethodProfile,
   markOperationDone,
   markOperationError,
@@ -130,7 +130,7 @@ export async function runJobSwarm(
   let totalCostUsd = 0;
 
   try {
-    await initPhaseEvents(supabase, operationId);
+    await resetPhaseEvents(supabase, operationId);
     const profile = await loadMethodProfile(supabase, claimed.workspace_id);
 
     // ── Fase 1: Perplexity (pesquisa) ─────────────────────────────────────
