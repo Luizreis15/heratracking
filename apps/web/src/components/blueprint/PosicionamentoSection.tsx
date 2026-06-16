@@ -137,9 +137,9 @@ export function PosicionamentoSection({
                     open ? "border-primary/50 bg-primary/5 sm:col-span-2" : "border-border min-h-[72px]",
                   ].join(" ")}
                 >
-                  <p className="text-sm font-semibold">{asString(p.nome ?? p.titulo ?? `Pilar ${i + 1}`)}</p>
-                  {open && !!asString(p.descricao) && (
-                    <p className="text-sm text-muted-foreground mt-2">{asString(p.descricao)}</p>
+                  <p className="text-sm font-semibold">{asString(p.nome ?? p.pilar ?? p.titulo ?? `Pilar ${i + 1}`)}</p>
+                  {open && !!asString(p.descricao ?? p.angulo) && (
+                    <p className="text-sm text-muted-foreground mt-2">{asString(p.descricao ?? p.angulo)}</p>
                   )}
                 </button>
               );

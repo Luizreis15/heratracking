@@ -122,7 +122,7 @@ Imediatamente **após** o bloco `<<<HERA_PHASE:comercial>>>`, emita o guia SPIN:
 {
   "statement": "",
   "narrativa": { "heroi": "", "problema": "", "guia": "", "plano": "", "cta": "" },
-  "pilares_conteudo": [],
+  "pilares_conteudo": [{ "nome": "", "descricao": "" }],
   "linha_editorial": { "mix": "", "formatos": [], "cadencia": "", "bio_cta": "" }
 }
 ```
