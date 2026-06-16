@@ -13,6 +13,7 @@ import {
   persistComparisonReport,
   setPhaseStatus,
 } from "./persist.js";
+import { GEN_COPY } from "./generation-copy.js";
 import { extractAssistantText, parseComparativoBlock } from "./parser.js";
 import type { MethodProfile, Operation } from "./types.js";
 
@@ -51,7 +52,7 @@ export async function runComparativo(
       supabase,
       operationId,
       "pesquisa",
-      "🎯 Claude — síntese comparativa estratégica...",
+      GEN_COPY.comparativoStart,
     );
 
     const profile = await loadMethodProfile(supabase, claimed.workspace_id);
@@ -134,7 +135,7 @@ export async function runComparativo(
       supabase,
       operationId,
       "pesquisa",
-      `✅ Comparativo estratégico gerado (${competitors.length} concorrentes)`,
+      GEN_COPY.comparativoDone(competitors.length),
     );
 
     console.log(`[worker][claude] Comparativo concluído — ${operationId}`);

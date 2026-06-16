@@ -316,6 +316,8 @@ export function parseRefineBlock(
   return null;
 }
 
+import { GEN_COPY } from "./generation-copy.js";
+
 export function toolLogLine(toolName: string, toolInput: unknown): string {
   if (toolName === "WebSearch") {
     const query =
@@ -325,13 +327,13 @@ export function toolLogLine(toolName: string, toolInput: unknown): string {
       typeof toolInput.query === "string"
         ? toolInput.query
         : "mercado";
-    return `🔍 Pesquisando: ${query}`;
+    return GEN_COPY.webSearch(query);
   }
   if (toolName === "Skill") {
-    return "⚙️ Executando skill arquiteto-de-agencia...";
+    return GEN_COPY.metodologia;
   }
   if (toolName === "Read" || toolName === "Glob" || toolName === "Grep") {
-    return `📄 ${toolName}...`;
+    return GEN_COPY.metodologia;
   }
-  return `🔧 ${toolName}...`;
+  return GEN_COPY.metodologia;
 }

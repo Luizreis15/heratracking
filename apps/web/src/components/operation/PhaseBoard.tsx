@@ -17,6 +17,7 @@ import {
 import { BLUEPRINT_SECTIONS } from "@/lib/blueprint-sections";
 import { PHASES, phaseIndex } from "@/lib/phases";
 import { operadorNomeFromOperation } from "@/lib/operador-nome";
+import { sanitizeGenerationLogLine } from "@/lib/sanitize-generation-log";
 import { resolveOperadorTipo } from "@/lib/operador-tipo";
 import { MetricsSummary } from "@/components/operation/MetricsSummary";
 import { RegenerateOperationButton } from "@/components/operation/RegenerateOperationButton";
@@ -446,11 +447,12 @@ function SectionLiveCard({
 }
 
 function PhaseLogPanel({ log, active }: { log: string; active: boolean }) {
-  const lastLine = log.split("\n").filter(Boolean).pop() ?? "Iniciando...";
+  const raw = log.split("\n").filter(Boolean).pop() ?? "Iniciando etapa...";
+  const lastLine = sanitizeGenerationLogLine(raw);
   const { displayed, done } = useTypewriter(lastLine, active);
   return (
     <div className="rounded-lg bg-hera-navy-deep/60 px-3 py-3 border border-hera-cyan/20">
-      <p className="hera-mono text-xs text-hera-cyan/90 leading-relaxed">
+      <p className="text-xs text-hera-cyan/90 leading-relaxed">
         <span className="text-hera-cyan/40 mr-2">›</span>
         {displayed}
         {!done && active && <span className="hera-typewriter-cursor" />}

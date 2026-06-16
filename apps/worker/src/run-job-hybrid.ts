@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PHASE_ORDER } from "./constants.js";
 import { WORKER_ROOT } from "./constants.js";
 import type { Env } from "./env.js";
+import { GEN_COPY } from "./generation-copy.js";
 import { createJobState, ingestText } from "./output-ingest.js";
 import {
   runPerplexityPhase,
@@ -62,7 +63,7 @@ export async function runJobHybrid(
       supabase,
       operationId,
       "oferta",
-      "🧠 Claude — fases 2 a 6 (skill arquiteto-de-agencia)...",
+      GEN_COPY.estruturaOperacional,
     );
 
     // Fases 2–6: Claude — melhor para síntese profunda e skill

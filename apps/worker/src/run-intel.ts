@@ -11,6 +11,7 @@ import {
   persistIntelEvents,
   setPhaseStatus,
 } from "./persist.js";
+import { GEN_COPY } from "./generation-copy.js";
 import { parseIntelBlock } from "./parser.js";
 import { perplexityChat } from "./perplexity/client.js";
 import { buildIntelScanMessages } from "./perplexity/phase-prompts.js";
@@ -44,7 +45,7 @@ export async function runIntelScan(
       supabase,
       operationId,
       "pesquisa",
-      "🔭 Varredura de inteligência competitiva iniciada...",
+      GEN_COPY.intelStart,
     );
 
     const profile = await loadMethodProfile(supabase, claimed.workspace_id);
@@ -82,7 +83,7 @@ export async function runIntelScan(
             supabase,
             operationId,
             "pesquisa",
-            `📡 Meta Graph — ${conn.pageName ?? conn.instagramUsername ?? "conexão ativa"}`,
+            GEN_COPY.intelMeta(conn.pageName ?? conn.instagramUsername ?? "conexão ativa"),
           );
           const metaEvents = await collectMetaIntelEvents({
             conn,

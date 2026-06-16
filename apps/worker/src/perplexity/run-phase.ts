@@ -6,6 +6,7 @@ import {
   appendPhaseLog,
   setPhaseStatus,
 } from "../persist.js";
+import { phaseStartMessage } from "../generation-copy.js";
 import { buildPhaseMessages } from "./phase-prompts.js";
 import { perplexityChat } from "./client.js";
 import type { MethodProfile, Operation } from "../types.js";
@@ -38,7 +39,7 @@ export async function runPerplexityPhase(
     supabase,
     operationId,
     phase,
-    `🌐 Perplexity (${env.PERPLEXITY_MODEL}) — coleta web...`,
+    phaseStartMessage(phase),
   );
 
   const { system, user } = await buildPhaseMessages(phase, operation, profile, sectionsSoFar);

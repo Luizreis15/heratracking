@@ -359,17 +359,18 @@ describe("toolLogLine", () => {
 
   it("formats Skill tool", () => {
     const line = toolLogLine("Skill", {});
-    expect(line).toContain("skill");
+    expect(line).toContain("metodologia");
+    expect(line).not.toContain("arquiteto");
   });
 
-  it("formats Read/Glob/Grep", () => {
-    expect(toolLogLine("Read", {})).toContain("Read");
-    expect(toolLogLine("Glob", {})).toContain("Glob");
-    expect(toolLogLine("Grep", {})).toContain("Grep");
+  it("formats Read/Glob/Grep as metodologia", () => {
+    expect(toolLogLine("Read", {})).toContain("metodologia");
+    expect(toolLogLine("Glob", {})).toContain("metodologia");
+    expect(toolLogLine("Grep", {})).toContain("metodologia");
   });
 
-  it("formats unknown tools with generic prefix", () => {
+  it("formats unknown tools as metodologia", () => {
     const line = toolLogLine("SomeTool", {});
-    expect(line).toContain("SomeTool");
+    expect(line).toContain("metodologia");
   });
 });

@@ -15,6 +15,7 @@ import {
   persistPhaseData,
   setPhaseStatus,
 } from "./persist.js";
+import { swarmAgentStart } from "./generation-copy.js";
 import { extractAssistantText, toolLogLine } from "./parser.js";
 import type { Operation } from "./types.js";
 
@@ -39,7 +40,7 @@ async function runPhaseAgent(
     await setPhaseStatus(supabase, operationId, phase, "running");
   }
 
-  await appendPhaseLog(supabase, operationId, phases[0], `🔀 Swarm/${agentLabel} iniciado`);
+  await appendPhaseLog(supabase, operationId, phases[0], swarmAgentStart(agentLabel));
 
   const q = query({
     prompt,
